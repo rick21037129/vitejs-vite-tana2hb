@@ -97,23 +97,23 @@ export default function OralHealthAssessment() {
 
   // --- 渲染各個表單 ---
   const renderOFI8 = () => (
-    <div className="space-y-4 p-2">
+    <div className="space-y-4 p-1 sm:p-2">
       <h3 className="text-lg font-medium text-gray-900 border-b pb-2">口腔衰弱指數8 (OFI-8)</h3>
-      <div className="bg-blue-50 p-4 rounded-md mb-4 flex justify-between items-center">
+      <div className="bg-blue-50 p-4 rounded-md mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <span className="font-medium text-blue-800">目前總分：{calculateOFI8()} 分</span>
         {calculateOFI8() >= 4 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 疑似口腔衰弱 (≥4分)</span>}
       </div>
       {OFI8_QUESTIONS.map((q) => (
-        <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <span className="text-gray-700 sm:w-3/4">{q.id}. {q.text}</span>
-          <div className="flex space-x-4 mt-2 sm:mt-0">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input type="radio" name={`ofi8-${q.id}`} value="yes" onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-4 h-4 text-blue-600" />
-              <span>是</span>
+        <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-3">
+          <span className="text-gray-700 sm:w-3/4 break-words leading-relaxed">{q.id}. {q.text}</span>
+          <div className="flex space-x-6 sm:space-x-4">
+            <label className="flex items-center space-x-2 cursor-pointer p-1">
+              <input type="radio" name={`ofi8-${q.id}`} value="yes" onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
+              <span className="text-base sm:text-sm">是</span>
             </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input type="radio" name={`ofi8-${q.id}`} value="no" onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-4 h-4 text-blue-600" />
-              <span>否</span>
+            <label className="flex items-center space-x-2 cursor-pointer p-1">
+              <input type="radio" name={`ofi8-${q.id}`} value="no" onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
+              <span className="text-base sm:text-sm">否</span>
             </label>
           </div>
         </div>
@@ -122,22 +122,22 @@ export default function OralHealthAssessment() {
   );
 
   const renderEAT10 = () => (
-    <div className="space-y-4 p-2">
+    <div className="space-y-4 p-1 sm:p-2">
       <h3 className="text-lg font-medium text-gray-900 border-b pb-2">吞嚥困難篩選工具表 (EAT-10)</h3>
       <p className="text-sm text-gray-500">0 = 沒有問題, 4 = 問題很嚴重</p>
-      <div className="bg-blue-50 p-4 rounded-md mb-4 flex justify-between items-center">
+      <div className="bg-blue-50 p-4 rounded-md mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <span className="font-medium text-blue-800">目前總分：{calculateEAT10()} 分</span>
         {calculateEAT10() >= 3 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 異常 (≥3分)</span>}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {EAT10_QUESTIONS.map((q, idx) => (
-          <div key={idx} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="text-sm font-medium text-gray-700 mb-2">{idx + 1}. {q}</p>
-            <div className="flex justify-between px-2">
+          <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+            <p className="text-sm font-medium text-gray-700 mb-4 break-words">{idx + 1}. {q}</p>
+            <div className="flex justify-between px-1 sm:px-2">
               {[0, 1, 2, 3, 4].map(score => (
-                <label key={score} className="flex flex-col items-center cursor-pointer">
-                  <input type="radio" name={`eat10-${idx}`} value={score} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-4 h-4 text-blue-600 mb-1" />
-                  <span className="text-xs text-gray-500">{score}</span>
+                <label key={score} className="flex flex-col items-center cursor-pointer p-1">
+                  <input type="radio" name={`eat10-${idx}`} value={score} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 mb-1.5" />
+                  <span className="text-sm sm:text-xs text-gray-600">{score}</span>
                 </label>
               ))}
             </div>
@@ -148,14 +148,14 @@ export default function OralHealthAssessment() {
   );
 
   const renderTCI = () => (
-    <div className="space-y-4 p-2 flex flex-col items-center">
+    <div className="space-y-4 p-1 sm:p-2 flex flex-col items-center">
       <div className="w-full">
         <h3 className="text-lg font-medium text-gray-900 border-b pb-2">舌苔指數 (TCI)</h3>
-        <div className="flex items-center text-sm text-gray-600 my-4 bg-blue-50 px-4 py-3 rounded-lg">
-          <Info className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0" />
-          <p>請觀察舌面，0: 無舌苔, 1: 薄舌苔 (可見舌乳突), 2: 厚舌苔 (無法看見舌乳突)。</p>
+        <div className="flex items-start sm:items-center text-sm text-gray-600 my-4 bg-blue-50 px-4 py-3 rounded-lg">
+          <Info className="w-5 h-5 mr-2 mt-0.5 sm:mt-0 text-blue-500 flex-shrink-0" />
+          <p className="break-words">請觀察舌面，0: 無舌苔, 1: 薄舌苔 (可見舌乳突), 2: 厚舌苔 (無法看見舌乳突)。</p>
         </div>
-        <div className="bg-blue-50 p-4 rounded-md mb-6 flex justify-between items-center">
+        <div className="bg-blue-50 p-4 rounded-md mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <span className="font-medium text-blue-800">TCI 指數：{calculateTCI()} %</span>
           {parseFloat(calculateTCI()) >= 50 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 異常 (≥50%)</span>}
         </div>
@@ -191,30 +191,30 @@ export default function OralHealthAssessment() {
   );
 
   const renderOHAT = () => (
-    <div className="space-y-4 p-2">
+    <div className="space-y-4 p-1 sm:p-2">
       <h3 className="text-lg font-medium text-gray-900 border-b pb-2">口腔健康評估量表 (OHAT)</h3>
-      <div className="bg-blue-50 p-4 rounded-md mb-4 flex justify-between items-center">
+      <div className="bg-blue-50 p-4 rounded-md mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <span className="font-medium text-blue-800">目前總分：{calculateOHAT()} 分</span>
         {calculateOHAT() >= 4 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 異常 (≥4分)</span>}
       </div>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">項目</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">0 分 (正常)</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">1 分 (變化)</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">2 分 (不健康)</th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">項目</th>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">0 分 (正常)</th>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">1 分 (變化)</th>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">2 分 (不健康)</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {OHAT_CATEGORIES.map((cat) => (
               <tr key={cat.id}>
-                <td className="px-4 py-3 text-sm font-medium text-gray-900 bg-gray-50">{cat.name}</td>
+                <td className="px-3 py-3 text-sm font-medium text-gray-900 bg-gray-50 whitespace-nowrap">{cat.name}</td>
                 {cat.opts.map((opt, idx) => (
-                  <td key={idx} className="px-4 py-3 text-sm text-gray-600 text-center cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => setOhat({...ohat, [cat.id]: idx})}>
-                    <input type="radio" name={`ohat-${cat.id}`} checked={ohat[cat.id] === idx} readOnly className="w-4 h-4 text-blue-600 mx-auto block mb-2 cursor-pointer" />
-                    <span className="text-xs leading-tight block">{opt}</span>
+                  <td key={idx} className="px-3 py-3 text-sm text-gray-600 text-center cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => setOhat({...ohat, [cat.id]: idx})}>
+                    <input type="radio" name={`ohat-${cat.id}`} checked={ohat[cat.id] === idx} readOnly className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 mx-auto block mb-2 cursor-pointer" />
+                    <span className="text-xs sm:text-sm leading-tight block break-words">{opt}</span>
                   </td>
                 ))}
               </tr>
@@ -226,26 +226,27 @@ export default function OralHealthAssessment() {
   );
 
   const renderOF5AndScreening = () => (
-    <div className="space-y-8 p-2">
+    <div className="space-y-8 p-1 sm:p-2">
       {/* OF-5 區塊 */}
       <div>
         <h3 className="text-lg font-medium text-gray-900 border-b pb-2 mb-4">口腔衰弱 5 項目 (OF-5)</h3>
-        <div className="bg-blue-50 p-4 rounded-md mb-4 flex justify-between items-center">
+        <div className="bg-blue-50 p-4 rounded-md mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <span className="font-medium text-blue-800">符合項目數：{calculateOF5()} 項</span>
           {calculateOF5() >= 2 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 疑似口腔衰弱 (≥2項)</span>}
         </div>
         <div className="space-y-3">
           {OF5_QUESTIONS.map((q) => (
-            <div key={q.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-              <span className="text-gray-700">{q.text}</span>
-              <div className="flex space-x-4">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input type="radio" name={`of5-${q.id}`} value="yes" onChange={() => setOf5({...of5, [q.id]: 'yes'})} className="w-4 h-4 text-blue-600" />
-                  <span>是</span>
+            // 這裡修正了手機版排版：改為 flex-col，在 sm 螢幕以上才變為 flex-row
+            <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100 gap-3">
+              <span className="text-gray-700 break-words leading-relaxed">{q.text}</span>
+              <div className="flex space-x-6 sm:space-x-4">
+                <label className="flex items-center space-x-2 cursor-pointer p-1">
+                  <input type="radio" name={`of5-${q.id}`} value="yes" onChange={() => setOf5({...of5, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
+                  <span className="text-base sm:text-sm">是</span>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input type="radio" name={`of5-${q.id}`} value="no" onChange={() => setOf5({...of5, [q.id]: 'no'})} className="w-4 h-4 text-blue-600" />
-                  <span>否</span>
+                <label className="flex items-center space-x-2 cursor-pointer p-1">
+                  <input type="radio" name={`of5-${q.id}`} value="no" onChange={() => setOf5({...of5, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
+                  <span className="text-base sm:text-sm">否</span>
                 </label>
               </div>
             </div>
@@ -260,17 +261,17 @@ export default function OralHealthAssessment() {
           {SCREENING_ITEMS.map((item) => (
             <div key={item.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
               <p className="text-sm font-bold text-gray-800 mb-3">{item.label}</p>
-              <div className="space-y-2">
+              <div className="space-y-3 sm:space-y-2">
                 {item.options.map((opt, idx) => (
-                  <label key={idx} className="flex items-center space-x-3 cursor-pointer">
+                  <label key={idx} className="flex items-center space-x-3 cursor-pointer p-1 sm:p-0">
                     <input 
                       type="radio" 
                       name={`screening-${item.id}`} 
                       value={opt} 
                       onChange={() => setScreening({...screening, [item.id]: opt})}
-                      className="w-4 h-4 text-blue-600" 
+                      className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" 
                     />
-                    <span className="text-sm text-gray-700">{opt}</span>
+                    <span className="text-base sm:text-sm text-gray-700 break-words">{opt}</span>
                   </label>
                 ))}
               </div>
@@ -280,7 +281,7 @@ export default function OralHealthAssessment() {
         <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <label className="block text-sm font-bold text-gray-800 mb-2">其他備註 / 異常描述</label>
           <textarea 
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3 border" 
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-3 border" 
             rows="3" 
             placeholder="請輸入其他觀察到的口腔狀況..."
           ></textarea>
@@ -298,23 +299,23 @@ export default function OralHealthAssessment() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 bg-gray-100 min-h-screen font-sans">
+    <div className="max-w-5xl mx-auto p-2 sm:p-4 lg:p-8 bg-gray-100 min-h-screen font-sans">
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Header */}
-        <div className="bg-blue-600 px-6 py-5 flex items-center gap-3">
-          <ClipboardList className="text-white w-7 h-7" />
-          <h1 className="text-2xl font-bold text-white tracking-wide">預防口腔衰弱 - 綜合評估表</h1>
+        <div className="bg-blue-600 px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3">
+          <ClipboardList className="text-white w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0" />
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wide truncate">預防口腔衰弱 - 綜合評估表</h1>
         </div>
 
         {/* Patient Info */}
-        <div className="px-6 py-6 bg-gray-50 border-b border-gray-200 grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="px-4 sm:px-6 py-4 sm:py-6 bg-gray-50 border-b border-gray-200 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
             <input 
               type="text" 
               value={patientInfo.name}
               onChange={(e) => setPatientInfo({...patientInfo, name: e.target.value})}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5 border" 
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border" 
               placeholder="輸入姓名" 
             />
           </div>
@@ -324,7 +325,7 @@ export default function OralHealthAssessment() {
               type="text" 
               value={patientInfo.id}
               onChange={(e) => setPatientInfo({...patientInfo, id: e.target.value})}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5 border" 
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border" 
               placeholder="輸入身分證" 
             />
           </div>
@@ -334,21 +335,21 @@ export default function OralHealthAssessment() {
               type="date" 
               value={patientInfo.date}
               onChange={(e) => setPatientInfo({...patientInfo, date: e.target.value})}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2.5 border" 
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border" 
             />
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           <Tab.Group defaultIndex={2}>
-            <Tab.List className="flex space-x-2 rounded-xl bg-blue-100/50 p-1.5 mb-6 overflow-x-auto">
+            <Tab.List className="flex space-x-2 rounded-xl bg-blue-100/50 p-1.5 mb-4 sm:mb-6 overflow-x-auto scrollbar-hide">
               {tabs.map((tab) => (
                 <Tab
                   key={tab.name}
                   className={({ selected }) =>
                     classNames(
-                      'w-full rounded-lg py-3 text-sm font-bold leading-5 whitespace-nowrap px-4 transition-all duration-200',
+                      'w-full rounded-lg py-2.5 sm:py-3 text-sm font-bold leading-5 whitespace-nowrap px-3 sm:px-4 transition-all duration-200',
                       'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2',
                       selected
                         ? 'bg-white text-blue-700 shadow-sm'
@@ -365,7 +366,7 @@ export default function OralHealthAssessment() {
                 <Tab.Panel
                   key={idx}
                   className={classNames(
-                    'rounded-xl bg-white p-2',
+                    'rounded-xl bg-white p-1 sm:p-2',
                     'focus:outline-none'
                   )}
                 >
@@ -377,8 +378,8 @@ export default function OralHealthAssessment() {
         </div>
         
         {/* Footer Actions */}
-        <div className="px-6 py-5 bg-gray-50 border-t border-gray-200 flex justify-end">
-          <button className="inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gray-50 border-t border-gray-200 flex justify-center sm:justify-end">
+          <button className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 sm:py-2.5 border border-transparent text-base sm:text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
             <CheckCircle2 className="w-5 h-5 mr-2" />
             儲存評估結果
           </button>
