@@ -103,11 +103,17 @@ export default function OralHealthAssessment() {
           <span className="text-gray-700 sm:w-3/4 break-words leading-relaxed">{q.id}. {q.text}</span>
           <div className="flex space-x-6 sm:space-x-4">
             <label className="flex items-center space-x-2 cursor-pointer p-1">
-              <input type="radio" name={`ofi8-${q.id}`} value="yes" onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" />
+              <input type="radio" name={`ofi8-${q.id}`} value="yes" onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} checked={ofi8[q.id] === 'yes'} className="sr-only peer" />
+              <div className="w-5 h-5 sm:w-4 sm:h-4 rounded-full border border-gray-300 bg-white flex items-center justify-center peer-checked:border-blue-500">
+                <div className="w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+              </div>
               <span className="text-base sm:text-sm text-gray-700">是</span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer p-1">
-              <input type="radio" name={`ofi8-${q.id}`} value="no" onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" />
+              <input type="radio" name={`ofi8-${q.id}`} value="no" onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} checked={ofi8[q.id] === 'no'} className="sr-only peer" />
+              <div className="w-5 h-5 sm:w-4 sm:h-4 rounded-full border border-gray-300 bg-white flex items-center justify-center peer-checked:border-blue-500">
+                <div className="w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+              </div>
               <span className="text-base sm:text-sm text-gray-700">否</span>
             </label>
           </div>
@@ -131,7 +137,10 @@ export default function OralHealthAssessment() {
             <div className="flex justify-between px-1 sm:px-2">
               {[0, 1, 2, 3, 4].map(score => (
                 <label key={score} className="flex flex-col items-center cursor-pointer p-1">
-                  <input type="radio" name={`eat10-${idx}`} value={score} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500 mb-1.5" />
+                  <input type="radio" name={`eat10-${idx}`} value={score} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} checked={String(eat10[idx]) === String(score)} className="sr-only peer" />
+                  <div className="w-5 h-5 sm:w-4 sm:h-4 mb-1.5 rounded-full border border-gray-300 bg-white flex items-center justify-center peer-checked:border-blue-500">
+                    <div className="w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                  </div>
                   <span className="text-sm sm:text-xs text-gray-600">{score}</span>
                 </label>
               ))}
@@ -206,12 +215,19 @@ export default function OralHealthAssessment() {
             {OHAT_CATEGORIES.map((cat) => (
               <tr key={cat.id}>
                 <td className="px-3 py-3 text-sm font-medium text-gray-900 bg-gray-50 whitespace-nowrap">{cat.name}</td>
-                {cat.opts.map((opt, idx) => (
-                  <td key={idx} className="px-3 py-3 text-sm text-gray-600 text-center cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => setOhat({...ohat, [cat.id]: idx})}>
-                    <input type="radio" name={`ohat-${cat.id}`} checked={ohat[cat.id] === idx} readOnly className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500 mx-auto block mb-2 cursor-pointer" />
-                    <span className="text-xs sm:text-sm leading-tight block break-words">{opt}</span>
-                  </td>
-                ))}
+                {cat.opts.map((opt, idx) => {
+                  const isChecked = ohat[cat.id] === idx;
+                  return (
+                    <td key={idx} className="px-3 py-3 text-sm text-gray-600 text-center cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => setOhat({...ohat, [cat.id]: idx})}>
+                      <div className="flex justify-center mb-2">
+                        <div className={`w-5 h-5 sm:w-4 sm:h-4 rounded-full border flex items-center justify-center bg-white ${isChecked ? 'border-blue-500' : 'border-gray-300'}`}>
+                          <div className={`w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 transition-opacity ${isChecked ? 'opacity-100' : 'opacity-0'}`}></div>
+                        </div>
+                      </div>
+                      <span className="text-xs sm:text-sm leading-tight block break-words">{opt}</span>
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -235,11 +251,17 @@ export default function OralHealthAssessment() {
               <span className="text-gray-700 break-words leading-relaxed">{q.text}</span>
               <div className="flex space-x-6 sm:space-x-4">
                 <label className="flex items-center space-x-2 cursor-pointer p-1">
-                  <input type="radio" name={`of5-${q.id}`} value="yes" onChange={() => setOf5({...of5, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" />
+                  <input type="radio" name={`of5-${q.id}`} value="yes" onChange={() => setOf5({...of5, [q.id]: 'yes'})} checked={of5[q.id] === 'yes'} className="sr-only peer" />
+                  <div className="w-5 h-5 sm:w-4 sm:h-4 rounded-full border border-gray-300 bg-white flex items-center justify-center peer-checked:border-blue-500">
+                    <div className="w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                  </div>
                   <span className="text-base sm:text-sm text-gray-700">是</span>
                 </label>
                 <label className="flex items-center space-x-2 cursor-pointer p-1">
-                  <input type="radio" name={`of5-${q.id}`} value="no" onChange={() => setOf5({...of5, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" />
+                  <input type="radio" name={`of5-${q.id}`} value="no" onChange={() => setOf5({...of5, [q.id]: 'no'})} checked={of5[q.id] === 'no'} className="sr-only peer" />
+                  <div className="w-5 h-5 sm:w-4 sm:h-4 rounded-full border border-gray-300 bg-white flex items-center justify-center peer-checked:border-blue-500">
+                    <div className="w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                  </div>
                   <span className="text-base sm:text-sm text-gray-700">否</span>
                 </label>
               </div>
@@ -263,8 +285,12 @@ export default function OralHealthAssessment() {
                       name={`screening-${item.id}`} 
                       value={opt} 
                       onChange={() => setScreening({...screening, [item.id]: opt})}
-                      className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" 
+                      checked={screening[item.id] === opt}
+                      className="sr-only peer" 
                     />
+                    <div className="w-5 h-5 sm:w-4 sm:h-4 rounded-full border border-gray-300 bg-white flex items-center justify-center peer-checked:border-blue-500">
+                      <div className="w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                    </div>
                     <span className="text-base sm:text-sm text-gray-700 break-words">{opt}</span>
                   </label>
                 ))}
