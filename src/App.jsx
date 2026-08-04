@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Tab } from '@headlessui/react';
 import { ClipboardList, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
 // --- 資料定義 ---
@@ -53,10 +52,6 @@ const SCREENING_ITEMS = [
   { id: 'mucosa', label: '口腔黏膜異常', options: ['無異常', '白斑 / 紅斑', '潰瘍 / 破皮', '不明腫塊'] }
 ];
 
-function classNames(...classes) {
-  return classes.filter(Boolean).join(' ');
-}
-
 export default function OralHealthAssessment() {
   // --- 狀態管理 ---
   const [patientInfo, setPatientInfo] = useState({ name: '', id: '', date: new Date().toISOString().split('T')[0] });
@@ -98,13 +93,13 @@ export default function OralHealthAssessment() {
   // --- 渲染各個表單 ---
   const renderOFI8 = () => (
     <div className="space-y-4 p-1 sm:p-2">
-      <h3 className="text-lg font-medium text-gray-900 border-b pb-2">口腔衰弱指數8 (OFI-8)</h3>
+      <h3 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2">口腔衰弱指數8 (OFI-8)</h3>
       <div className="bg-blue-50 p-4 rounded-md mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <span className="font-medium text-blue-800">目前總分：{calculateOFI8()} 分</span>
         {calculateOFI8() >= 4 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 疑似口腔衰弱 (≥4分)</span>}
       </div>
       {OFI8_QUESTIONS.map((q) => (
-        <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-3">
+        <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-3 border border-gray-100">
           <span className="text-gray-700 sm:w-3/4 break-words leading-relaxed">{q.id}. {q.text}</span>
           <div className="flex space-x-6 sm:space-x-4">
             <label className="flex items-center space-x-2 cursor-pointer p-1">
@@ -123,7 +118,7 @@ export default function OralHealthAssessment() {
 
   const renderEAT10 = () => (
     <div className="space-y-4 p-1 sm:p-2">
-      <h3 className="text-lg font-medium text-gray-900 border-b pb-2">吞嚥困難篩選工具表 (EAT-10)</h3>
+      <h3 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2">吞嚥困難篩選工具表 (EAT-10)</h3>
       <p className="text-sm text-gray-500">0 = 沒有問題, 4 = 問題很嚴重</p>
       <div className="bg-blue-50 p-4 rounded-md mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <span className="font-medium text-blue-800">目前總分：{calculateEAT10()} 分</span>
@@ -150,7 +145,7 @@ export default function OralHealthAssessment() {
   const renderTCI = () => (
     <div className="space-y-4 p-1 sm:p-2 flex flex-col items-center">
       <div className="w-full">
-        <h3 className="text-lg font-medium text-gray-900 border-b pb-2">舌苔指數 (TCI)</h3>
+        <h3 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2">舌苔指數 (TCI)</h3>
         <div className="flex items-start sm:items-center text-sm text-gray-600 my-4 bg-blue-50 px-4 py-3 rounded-lg">
           <Info className="w-5 h-5 mr-2 mt-0.5 sm:mt-0 text-blue-500 flex-shrink-0" />
           <p className="break-words">請觀察舌面，0: 無舌苔, 1: 薄舌苔 (可見舌乳突), 2: 厚舌苔 (無法看見舌乳突)。</p>
@@ -169,7 +164,6 @@ export default function OralHealthAssessment() {
           {tci.map((val, idx) => (
             <div key={idx} className="border border-pink-200 flex items-center justify-center bg-white/30 hover:bg-white/60 transition-colors">
               <select 
-                // 加入 bg-white text-gray-900 確保深色模式下文字可見
                 className="block w-14 h-10 text-center text-base font-medium rounded-md border-pink-300 shadow-sm focus:border-pink-500 focus:ring-pink-500 bg-white text-gray-900 cursor-pointer appearance-none"
                 value={val}
                 onChange={(e) => {
@@ -192,13 +186,14 @@ export default function OralHealthAssessment() {
   );
 
   const renderOHAT = () => (
-    <div className="space-y-4 p-1 sm:p-2">
-      <h3 className="text-lg font-medium text-gray-900 border-b pb-2">口腔健康評估量表 (OHAT)</h3>
+    <div className="space-y-4 p-1 sm:p-2 w-full">
+      <h3 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2">口腔健康評估量表 (OHAT)</h3>
       <div className="bg-blue-50 p-4 rounded-md mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <span className="font-medium text-blue-800">目前總分：{calculateOHAT()} 分</span>
         {calculateOHAT() >= 4 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 異常 (≥4分)</span>}
       </div>
-      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+      {/* 這裡保留 overflow-x-auto 是為了讓「表格內部」可以滑動，而不會撐破整個網頁導致整個網頁左右滑動 */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm w-full">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -230,7 +225,7 @@ export default function OralHealthAssessment() {
     <div className="space-y-8 p-1 sm:p-2">
       {/* OF-5 區塊 */}
       <div>
-        <h3 className="text-lg font-medium text-gray-900 border-b pb-2 mb-4">口腔衰弱 5 項目 (OF-5)</h3>
+        <h3 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">口腔衰弱 5 項目 (OF-5)</h3>
         <div className="bg-blue-50 p-4 rounded-md mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <span className="font-medium text-blue-800">符合項目數：{calculateOF5()} 項</span>
           {calculateOF5() >= 2 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 疑似口腔衰弱 (≥2項)</span>}
@@ -256,7 +251,7 @@ export default function OralHealthAssessment() {
 
       {/* 口篩表區塊 */}
       <div>
-        <h3 className="text-lg font-medium text-gray-900 border-b pb-2 mb-4">一般口腔篩檢表</h3>
+        <h3 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">一般口腔篩檢表</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {SCREENING_ITEMS.map((item) => (
             <div key={item.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -281,7 +276,6 @@ export default function OralHealthAssessment() {
         <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <label className="block text-sm font-bold text-gray-800 mb-2">其他備註 / 異常描述</label>
           <textarea 
-            // 加入 bg-white text-gray-900
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-3 border bg-white text-gray-900 appearance-none" 
             rows="3" 
             placeholder="請輸入其他觀察到的口腔狀況..."
@@ -291,19 +285,13 @@ export default function OralHealthAssessment() {
     </div>
   );
 
-  const tabs = [
-    { name: 'OFI-8', content: renderOFI8 },
-    { name: 'EAT-10', content: renderEAT10 },
-    { name: 'TCI 舌苔', content: renderTCI },
-    { name: 'OHAT', content: renderOHAT },
-    { name: 'OF-5 & 口篩表', content: renderOF5AndScreening }
-  ];
-
   return (
-    <div className="max-w-5xl mx-auto p-2 sm:p-4 lg:p-8 bg-gray-100 min-h-screen font-sans">
-      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-        {/* Header */}
-        <div className="bg-blue-600 px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3">
+    // 最外層加入 w-full overflow-x-hidden 確保手機版不會左右滑動
+    <div className="w-full overflow-x-hidden min-h-screen bg-gray-100 font-sans p-2 sm:p-4 lg:p-8">
+      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        
+        {/* Header (固定在上方，讓使用者知道目前在哪個表單) */}
+        <div className="bg-blue-600 px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3 sticky top-0 z-10 shadow-md">
           <ClipboardList className="text-white w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0" />
           <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wide truncate">預防口腔衰弱 - 綜合評估表</h1>
         </div>
@@ -316,7 +304,6 @@ export default function OralHealthAssessment() {
               type="text" 
               value={patientInfo.name}
               onChange={(e) => setPatientInfo({...patientInfo, name: e.target.value})}
-              // 加入 bg-white text-gray-900 appearance-none
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border bg-white text-gray-900 appearance-none placeholder-gray-400" 
               placeholder="輸入姓名" 
             />
@@ -327,7 +314,6 @@ export default function OralHealthAssessment() {
               type="text" 
               value={patientInfo.id}
               onChange={(e) => setPatientInfo({...patientInfo, id: e.target.value})}
-              // 加入 bg-white text-gray-900 appearance-none
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border bg-white text-gray-900 appearance-none placeholder-gray-400" 
               placeholder="輸入身分證" 
             />
@@ -338,53 +324,41 @@ export default function OralHealthAssessment() {
               type="date" 
               value={patientInfo.date}
               onChange={(e) => setPatientInfo({...patientInfo, date: e.target.value})}
-              // 加入 bg-white text-gray-900 appearance-none
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border bg-white text-gray-900 appearance-none" 
             />
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="p-3 sm:p-6">
-          <Tab.Group defaultIndex={2}>
-            <Tab.List className="flex space-x-2 rounded-xl bg-blue-100/50 p-1.5 mb-4 sm:mb-6 overflow-x-auto scrollbar-hide">
-              {tabs.map((tab) => (
-                <Tab
-                  key={tab.name}
-                  className={({ selected }) =>
-                    classNames(
-                      'w-full rounded-lg py-2.5 sm:py-3 text-sm font-bold leading-5 whitespace-nowrap px-3 sm:px-4 transition-all duration-200',
-                      'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2',
-                      selected
-                        ? 'bg-white text-blue-700 shadow-sm'
-                        : 'text-gray-600 hover:bg-white/[0.6] hover:text-blue-600'
-                    )
-                  }
-                >
-                  {tab.name}
-                </Tab>
-              ))}
-            </Tab.List>
-            <Tab.Panels className="mt-2 min-h-[400px]">
-              {tabs.map((tab, idx) => (
-                <Tab.Panel
-                  key={idx}
-                  className={classNames(
-                    'rounded-xl bg-white p-1 sm:p-2',
-                    'focus:outline-none'
-                  )}
-                >
-                  {tab.content()}
-                </Tab.Panel>
-              ))}
-            </Tab.Panels>
-          </Tab.Group>
+        {/* Main Content Area - 垂直堆疊所有的評估表 */}
+        <div className="p-3 sm:p-6 space-y-10">
+          {/* 1. OFI-8 */}
+          <section>{renderOFI8()}</section>
+          
+          <hr className="border-gray-200" />
+          
+          {/* 2. EAT-10 */}
+          <section>{renderEAT10()}</section>
+          
+          <hr className="border-gray-200" />
+          
+          {/* 3. TCI */}
+          <section>{renderTCI()}</section>
+          
+          <hr className="border-gray-200" />
+          
+          {/* 4. OHAT */}
+          <section>{renderOHAT()}</section>
+          
+          <hr className="border-gray-200" />
+          
+          {/* 5. OF-5 & 口篩表 */}
+          <section>{renderOF5AndScreening()}</section>
         </div>
         
         {/* Footer Actions */}
-        <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gray-50 border-t border-gray-200 flex justify-center sm:justify-end">
-          <button className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 sm:py-2.5 border border-transparent text-base sm:text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-            <CheckCircle2 className="w-5 h-5 mr-2" />
+        <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gray-50 border-t border-gray-200 flex justify-center sm:justify-end sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+          <button className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 sm:py-2.5 border border-transparent text-lg sm:text-sm font-bold rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+            <CheckCircle2 className="w-6 h-6 sm:w-5 sm:h-5 mr-2" />
             儲存評估結果
           </button>
         </div>
