@@ -103,11 +103,11 @@ export default function OralHealthAssessment() {
           <span className="text-gray-700 sm:w-3/4 break-words leading-relaxed">{q.id}. {q.text}</span>
           <div className="flex space-x-6 sm:space-x-4">
             <label className="flex items-center space-x-2 cursor-pointer p-1">
-              <input type="radio" name={`ofi8-${q.id}`} value="yes" onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
+              <input type="radio" name={`ofi8-${q.id}`} value="yes" onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" />
               <span className="text-base sm:text-sm text-gray-700">是</span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer p-1">
-              <input type="radio" name={`ofi8-${q.id}`} value="no" onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
+              <input type="radio" name={`ofi8-${q.id}`} value="no" onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" />
               <span className="text-base sm:text-sm text-gray-700">否</span>
             </label>
           </div>
@@ -131,7 +131,7 @@ export default function OralHealthAssessment() {
             <div className="flex justify-between px-1 sm:px-2">
               {[0, 1, 2, 3, 4].map(score => (
                 <label key={score} className="flex flex-col items-center cursor-pointer p-1">
-                  <input type="radio" name={`eat10-${idx}`} value={score} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 mb-1.5" />
+                  <input type="radio" name={`eat10-${idx}`} value={score} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500 mb-1.5" />
                   <span className="text-sm sm:text-xs text-gray-600">{score}</span>
                 </label>
               ))}
@@ -192,7 +192,6 @@ export default function OralHealthAssessment() {
         <span className="font-medium text-blue-800">目前總分：{calculateOHAT()} 分</span>
         {calculateOHAT() >= 4 && <span className="text-red-600 font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-1"/> 異常 (≥4分)</span>}
       </div>
-      {/* 這裡保留 overflow-x-auto 是為了讓「表格內部」可以滑動，而不會撐破整個網頁導致整個網頁左右滑動 */}
       <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm w-full">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -209,7 +208,7 @@ export default function OralHealthAssessment() {
                 <td className="px-3 py-3 text-sm font-medium text-gray-900 bg-gray-50 whitespace-nowrap">{cat.name}</td>
                 {cat.opts.map((opt, idx) => (
                   <td key={idx} className="px-3 py-3 text-sm text-gray-600 text-center cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => setOhat({...ohat, [cat.id]: idx})}>
-                    <input type="radio" name={`ohat-${cat.id}`} checked={ohat[cat.id] === idx} readOnly className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 mx-auto block mb-2 cursor-pointer" />
+                    <input type="radio" name={`ohat-${cat.id}`} checked={ohat[cat.id] === idx} readOnly className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500 mx-auto block mb-2 cursor-pointer" />
                     <span className="text-xs sm:text-sm leading-tight block break-words">{opt}</span>
                   </td>
                 ))}
@@ -236,11 +235,11 @@ export default function OralHealthAssessment() {
               <span className="text-gray-700 break-words leading-relaxed">{q.text}</span>
               <div className="flex space-x-6 sm:space-x-4">
                 <label className="flex items-center space-x-2 cursor-pointer p-1">
-                  <input type="radio" name={`of5-${q.id}`} value="yes" onChange={() => setOf5({...of5, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
+                  <input type="radio" name={`of5-${q.id}`} value="yes" onChange={() => setOf5({...of5, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" />
                   <span className="text-base sm:text-sm text-gray-700">是</span>
                 </label>
                 <label className="flex items-center space-x-2 cursor-pointer p-1">
-                  <input type="radio" name={`of5-${q.id}`} value="no" onChange={() => setOf5({...of5, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
+                  <input type="radio" name={`of5-${q.id}`} value="no" onChange={() => setOf5({...of5, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" />
                   <span className="text-base sm:text-sm text-gray-700">否</span>
                 </label>
               </div>
@@ -264,7 +263,7 @@ export default function OralHealthAssessment() {
                       name={`screening-${item.id}`} 
                       value={opt} 
                       onChange={() => setScreening({...screening, [item.id]: opt})}
-                      className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" 
+                      className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600 bg-white border-gray-300 focus:ring-blue-500" 
                     />
                     <span className="text-base sm:text-sm text-gray-700 break-words">{opt}</span>
                   </label>
@@ -286,11 +285,10 @@ export default function OralHealthAssessment() {
   );
 
   return (
-    // 最外層加入 w-full overflow-x-hidden 確保手機版不會左右滑動
     <div className="w-full overflow-x-hidden min-h-screen bg-gray-100 font-sans p-2 sm:p-4 lg:p-8">
       <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
         
-        {/* Header (固定在上方，讓使用者知道目前在哪個表單) */}
+        {/* Header */}
         <div className="bg-blue-600 px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3 sticky top-0 z-10 shadow-md">
           <ClipboardList className="text-white w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0" />
           <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wide truncate">預防口腔衰弱 - 綜合評估表</h1>
@@ -329,29 +327,16 @@ export default function OralHealthAssessment() {
           </div>
         </div>
 
-        {/* Main Content Area - 垂直堆疊所有的評估表 */}
+        {/* Main Content Area */}
         <div className="p-3 sm:p-6 space-y-10">
-          {/* 1. OFI-8 */}
           <section>{renderOFI8()}</section>
-          
           <hr className="border-gray-200" />
-          
-          {/* 2. EAT-10 */}
           <section>{renderEAT10()}</section>
-          
           <hr className="border-gray-200" />
-          
-          {/* 3. TCI */}
           <section>{renderTCI()}</section>
-          
           <hr className="border-gray-200" />
-          
-          {/* 4. OHAT */}
           <section>{renderOHAT()}</section>
-          
           <hr className="border-gray-200" />
-          
-          {/* 5. OF-5 & 口篩表 */}
           <section>{renderOF5AndScreening()}</section>
         </div>
         
