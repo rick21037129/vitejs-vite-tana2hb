@@ -109,11 +109,11 @@ export default function OralHealthAssessment() {
           <div className="flex space-x-6 sm:space-x-4">
             <label className="flex items-center space-x-2 cursor-pointer p-1">
               <input type="radio" name={`ofi8-${q.id}`} value="yes" onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
-              <span className="text-base sm:text-sm">是</span>
+              <span className="text-base sm:text-sm text-gray-700">是</span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer p-1">
               <input type="radio" name={`ofi8-${q.id}`} value="no" onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
-              <span className="text-base sm:text-sm">否</span>
+              <span className="text-base sm:text-sm text-gray-700">否</span>
             </label>
           </div>
         </div>
@@ -169,7 +169,8 @@ export default function OralHealthAssessment() {
           {tci.map((val, idx) => (
             <div key={idx} className="border border-pink-200 flex items-center justify-center bg-white/30 hover:bg-white/60 transition-colors">
               <select 
-                className="block w-14 h-10 text-center text-base font-medium rounded-md border-pink-300 shadow-sm focus:border-pink-500 focus:ring-pink-500 bg-white cursor-pointer"
+                // 加入 bg-white text-gray-900 確保深色模式下文字可見
+                className="block w-14 h-10 text-center text-base font-medium rounded-md border-pink-300 shadow-sm focus:border-pink-500 focus:ring-pink-500 bg-white text-gray-900 cursor-pointer appearance-none"
                 value={val}
                 onChange={(e) => {
                   const newTci = [...tci];
@@ -236,17 +237,16 @@ export default function OralHealthAssessment() {
         </div>
         <div className="space-y-3">
           {OF5_QUESTIONS.map((q) => (
-            // 這裡修正了手機版排版：改為 flex-col，在 sm 螢幕以上才變為 flex-row
             <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100 gap-3">
               <span className="text-gray-700 break-words leading-relaxed">{q.text}</span>
               <div className="flex space-x-6 sm:space-x-4">
                 <label className="flex items-center space-x-2 cursor-pointer p-1">
                   <input type="radio" name={`of5-${q.id}`} value="yes" onChange={() => setOf5({...of5, [q.id]: 'yes'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
-                  <span className="text-base sm:text-sm">是</span>
+                  <span className="text-base sm:text-sm text-gray-700">是</span>
                 </label>
                 <label className="flex items-center space-x-2 cursor-pointer p-1">
                   <input type="radio" name={`of5-${q.id}`} value="no" onChange={() => setOf5({...of5, [q.id]: 'no'})} className="w-5 h-5 sm:w-4 sm:h-4 text-blue-600" />
-                  <span className="text-base sm:text-sm">否</span>
+                  <span className="text-base sm:text-sm text-gray-700">否</span>
                 </label>
               </div>
             </div>
@@ -281,7 +281,8 @@ export default function OralHealthAssessment() {
         <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <label className="block text-sm font-bold text-gray-800 mb-2">其他備註 / 異常描述</label>
           <textarea 
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-3 border" 
+            // 加入 bg-white text-gray-900
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-3 border bg-white text-gray-900 appearance-none" 
             rows="3" 
             placeholder="請輸入其他觀察到的口腔狀況..."
           ></textarea>
@@ -315,7 +316,8 @@ export default function OralHealthAssessment() {
               type="text" 
               value={patientInfo.name}
               onChange={(e) => setPatientInfo({...patientInfo, name: e.target.value})}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border" 
+              // 加入 bg-white text-gray-900 appearance-none
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border bg-white text-gray-900 appearance-none placeholder-gray-400" 
               placeholder="輸入姓名" 
             />
           </div>
@@ -325,7 +327,8 @@ export default function OralHealthAssessment() {
               type="text" 
               value={patientInfo.id}
               onChange={(e) => setPatientInfo({...patientInfo, id: e.target.value})}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border" 
+              // 加入 bg-white text-gray-900 appearance-none
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border bg-white text-gray-900 appearance-none placeholder-gray-400" 
               placeholder="輸入身分證" 
             />
           </div>
@@ -335,7 +338,8 @@ export default function OralHealthAssessment() {
               type="date" 
               value={patientInfo.date}
               onChange={(e) => setPatientInfo({...patientInfo, date: e.target.value})}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border" 
+              // 加入 bg-white text-gray-900 appearance-none
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm p-2.5 border bg-white text-gray-900 appearance-none" 
             />
           </div>
         </div>
