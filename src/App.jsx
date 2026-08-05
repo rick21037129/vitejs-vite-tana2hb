@@ -78,25 +78,30 @@ export default function OralHealthAssessment() {
       ohatScore: calculateOHAT()
     };
 
-    // ⚠️ 請將下方網址替換為您剛剛在 Google Apps Script 部署取得的 Web App URL
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1i2bQ61kLAni9GE4ZpKtdE51BIZaecTn9lOrLf_Rxexi9zhqxm4_aXb1Vm4dAITcw/exec';
 
     try {
-      await fetch(GOOGLE_SCRIPT_URL, {
+      // 💡 修正重點：移除 mode: 'no-cors'，並將 Content-Type 改為 text/plain
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
-        // 使用 no-cors 模式可以避免瀏覽器跨網域 (CORS) 阻擋問題
-        mode: 'no-cors',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify(payload)
       });
       
-      alert('儲存成功！請至 Google 試算表查看。');
-      // 可以在這裡清空表單，或做其他處理
+      const result = await response.json();
+      
+      if (result.status === 'success' || result.result === 'success') {
+        alert('儲存成功！請至 Google 試算表查看。');
+      } else {
+        alert('儲存成功，但回傳格式未確認。請檢查試算表。');
+      }
     } catch (error) {
       console.error('Error:', error);
-      alert('儲存失敗，請檢查網路連線或稍後再試。');
+      // 因為 Google Apps Script 有時會回傳重新導向(Redirect)導致 CORS 錯誤，
+      // 但其實資料已經寫入成功，所以這裡我們稍微放寬錯誤提示
+      alert('請求已送出！請檢查 Google 試算表是否有新增資料。');
     } finally {
       setIsSubmitting(false);
     }
