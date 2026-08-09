@@ -247,12 +247,14 @@ export default function OralHealthAssessment() {
               <div key={q.id} className="flex flex-col pb-4 border-b border-gray-100 last:border-0">
                 <span className="text-sm text-gray-800 mb-3 font-medium">{q.id}. {q.text}</span>
                 <div className="flex space-x-6">
-                  <label className="flex items-center space-x-2 cursor-pointer bg-gray-50 px-4 py-2 rounded-lg flex-1 justify-center border border-gray-200 hover:bg-blue-50">
-                    <input type="radio" name={`ofi8-${q.id}`} value="yes" onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-4 h-4 text-blue-600" />
+                  {/* 「是」的按鈕 */}
+                  <label className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${ofi8[q.id] === 'yes' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
+                    <input type="radio" name={`ofi8-${q.id}`} value="yes" checked={ofi8[q.id] === 'yes'} onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-4 h-4 text-blue-600" />
                     <span className="text-sm font-medium">是</span>
                   </label>
-                  <label className="flex items-center space-x-2 cursor-pointer bg-gray-50 px-4 py-2 rounded-lg flex-1 justify-center border border-gray-200 hover:bg-blue-50">
-                    <input type="radio" name={`ofi8-${q.id}`} value="no" onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-4 h-4 text-blue-600" />
+                  {/* 「否」的按鈕 */}
+                  <label className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${ofi8[q.id] === 'no' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
+                    <input type="radio" name={`ofi8-${q.id}`} value="no" checked={ofi8[q.id] === 'no'} onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-4 h-4 text-blue-600" />
                     <span className="text-sm font-medium">否</span>
                   </label>
                 </div>
@@ -275,9 +277,9 @@ export default function OralHealthAssessment() {
                 <span className="text-sm text-gray-800 mb-3 font-medium">{idx + 1}. {q}</span>
                 <div className="flex justify-between bg-gray-50 p-2 rounded-lg border border-gray-200">
                   {[0, 1, 2, 3, 4].map(score => (
-                    <label key={score} className="flex flex-col items-center cursor-pointer p-2 hover:bg-blue-100 rounded-md flex-1">
-                      <input type="radio" name={`eat10-${idx}`} value={score} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-4 h-4 text-blue-600 mb-1" />
-                      <span className="text-xs font-medium text-gray-600">{score}</span>
+                    <label key={score} className={`flex flex-col items-center cursor-pointer p-2 rounded-md flex-1 transition-colors ${eat10[idx] === String(score) ? 'bg-blue-200 shadow-sm' : 'hover:bg-blue-100'}`}>
+                      <input type="radio" name={`eat10-${idx}`} value={score} checked={eat10[idx] === String(score)} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-4 h-4 text-blue-600 mb-1" />
+                      <span className={`text-xs font-medium ${eat10[idx] === String(score) ? 'text-blue-800' : 'text-gray-600'}`}>{score}</span>
                     </label>
                   ))}
                 </div>
@@ -330,10 +332,10 @@ export default function OralHealthAssessment() {
                 <span className="text-sm text-blue-900 mb-3 font-bold bg-blue-50 inline-block px-3 py-1 rounded-md self-start">{cat.name}</span>
                 <div className="space-y-2">
                   {cat.opts.map((opt, idx) => (
-                    <label key={idx} className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${ohat[cat.id] === idx ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+                    <label key={idx} className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${ohat[cat.id] === idx ? 'bg-blue-100 border-blue-400' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
                       <input type="radio" name={`ohat-${cat.id}`} checked={ohat[cat.id] === idx} onChange={() => setOhat({...ohat, [cat.id]: idx})} className="mt-0.5 w-4 h-4 text-blue-600 mr-3 shrink-0" />
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-800">{idx} 分</span>
+                        <span className={`text-sm font-medium ${ohat[cat.id] === idx ? 'text-blue-900' : 'text-gray-800'}`}>{idx} 分</span>
                         <span className="text-xs text-gray-500 mt-1">{opt}</span>
                       </div>
                     </label>
@@ -357,8 +359,8 @@ export default function OralHealthAssessment() {
                 <span className="text-sm text-gray-800 mb-3 font-medium">{q.text}</span>
                 <div className="flex space-x-4">
                   {q.opts.map(opt => (
-                    <label key={opt.label} className="flex items-center space-x-2 cursor-pointer bg-gray-50 px-4 py-2 rounded-lg flex-1 justify-center border border-gray-200 hover:bg-blue-50">
-                      <input type="radio" name={`of5-${q.id}`} value={opt.val} onChange={() => setOf5({...of5, [q.id]: opt.val})} className="w-4 h-4 text-blue-600" />
+                    <label key={opt.label} className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${of5[q.id] === opt.val ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
+                      <input type="radio" name={`of5-${q.id}`} value={opt.val} checked={of5[q.id] === opt.val} onChange={() => setOf5({...of5, [q.id]: opt.val})} className="w-4 h-4 text-blue-600" />
                       <span className="text-sm font-medium">{opt.label}</span>
                     </label>
                   ))}
@@ -372,7 +374,7 @@ export default function OralHealthAssessment() {
         <Card title="口篩表">
           <div className="space-y-6">
             
-            {/* 牙齒現況 (新增區塊) */}
+            {/* 牙齒現況 */}
             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
               <div className="flex justify-between items-end mb-2">
                 <label className="block text-sm font-bold text-blue-900">牙齒現況</label>
@@ -434,9 +436,9 @@ export default function OralHealthAssessment() {
               <label className="block text-sm font-bold text-gray-800 mb-2">飲食方式</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {['經口', '鼻胃管', '胃造口', '其它'].map(opt => (
-                  <label key={opt} className="flex items-center p-2 border rounded-lg bg-gray-50 cursor-pointer">
-                    <input type="radio" name="dietMethod" value={opt} onChange={(e) => setOralScreening({...oralScreening, dietMethod: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
-                    <span className="text-sm">{opt}</span>
+                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.dietMethod === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
+                    <input type="radio" name="dietMethod" value={opt} checked={oralScreening.dietMethod === opt} onChange={(e) => setOralScreening({...oralScreening, dietMethod: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
+                    <span className="text-sm font-medium">{opt}</span>
                   </label>
                 ))}
               </div>
@@ -447,9 +449,9 @@ export default function OralHealthAssessment() {
               <label className="block text-sm font-bold text-gray-800 mb-2">食物型態</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {['正常', '軟食', '碎食', '泥狀', '其它'].map(opt => (
-                  <label key={opt} className="flex items-center p-2 border rounded-lg bg-gray-50 cursor-pointer">
-                    <input type="radio" name="foodType" value={opt} onChange={(e) => setOralScreening({...oralScreening, foodType: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
-                    <span className="text-sm">{opt}</span>
+                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.foodType === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
+                    <input type="radio" name="foodType" value={opt} checked={oralScreening.foodType === opt} onChange={(e) => setOralScreening({...oralScreening, foodType: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
+                    <span className="text-sm font-medium">{opt}</span>
                   </label>
                 ))}
               </div>
@@ -460,9 +462,9 @@ export default function OralHealthAssessment() {
               <label className="block text-sm font-bold text-gray-800 mb-2">飲食能力</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {['自行進食', '使用特殊餐具', '輔助餵食', '其它'].map(opt => (
-                  <label key={opt} className="flex items-center p-2 border rounded-lg bg-gray-50 cursor-pointer">
-                    <input type="radio" name="eatingAbility" value={opt} onChange={(e) => setOralScreening({...oralScreening, eatingAbility: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
-                    <span className="text-sm">{opt}</span>
+                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.eatingAbility === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
+                    <input type="radio" name="eatingAbility" value={opt} checked={oralScreening.eatingAbility === opt} onChange={(e) => setOralScreening({...oralScreening, eatingAbility: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
+                    <span className="text-sm font-medium">{opt}</span>
                   </label>
                 ))}
               </div>
@@ -474,7 +476,7 @@ export default function OralHealthAssessment() {
               
               <div className="mb-4">
                 <span className="text-xs font-bold text-gray-600 block mb-2">上顎</span>
-                <select className="w-full p-2 border rounded-lg mb-2 bg-white" onChange={(e) => setOralScreening({...oralScreening, upperDenture: e.target.value})}>
+                <select className="w-full p-2 border rounded-lg mb-2 bg-white" value={oralScreening.upperDenture} onChange={(e) => setOralScreening({...oralScreening, upperDenture: e.target.value})}>
                   <option value="">選擇假牙類型</option>
                   <option value="無">無</option>
                   <option value="局部活動">局部活動假牙</option>
@@ -484,8 +486,9 @@ export default function OralHealthAssessment() {
                 </select>
                 <div className="flex space-x-4">
                   {['經常', '偶爾', '其它'].map(opt => (
-                    <label key={`up-${opt}`} className="flex items-center text-sm">
-                      <input type="radio" name="upperDentureUsage" value={opt} onChange={(e) => setOralScreening({...oralScreening, upperDentureUsage: e.target.value})} className="mr-1" /> {opt}
+                    <label key={`up-${opt}`} className="flex items-center text-sm cursor-pointer">
+                      <input type="radio" name="upperDentureUsage" value={opt} checked={oralScreening.upperDentureUsage === opt} onChange={(e) => setOralScreening({...oralScreening, upperDentureUsage: e.target.value})} className="mr-1 text-blue-600" /> 
+                      <span className={oralScreening.upperDentureUsage === opt ? 'text-blue-700 font-bold' : 'text-gray-700'}>{opt}</span>
                     </label>
                   ))}
                 </div>
@@ -493,7 +496,7 @@ export default function OralHealthAssessment() {
 
               <div>
                 <span className="text-xs font-bold text-gray-600 block mb-2">下顎</span>
-                <select className="w-full p-2 border rounded-lg mb-2 bg-white" onChange={(e) => setOralScreening({...oralScreening, lowerDenture: e.target.value})}>
+                <select className="w-full p-2 border rounded-lg mb-2 bg-white" value={oralScreening.lowerDenture} onChange={(e) => setOralScreening({...oralScreening, lowerDenture: e.target.value})}>
                   <option value="">選擇假牙類型</option>
                   <option value="無">無</option>
                   <option value="局部活動">局部活動假牙</option>
@@ -503,8 +506,9 @@ export default function OralHealthAssessment() {
                 </select>
                 <div className="flex space-x-4">
                   {['經常', '偶爾', '其它'].map(opt => (
-                    <label key={`low-${opt}`} className="flex items-center text-sm">
-                      <input type="radio" name="lowerDentureUsage" value={opt} onChange={(e) => setOralScreening({...oralScreening, lowerDentureUsage: e.target.value})} className="mr-1" /> {opt}
+                    <label key={`low-${opt}`} className="flex items-center text-sm cursor-pointer">
+                      <input type="radio" name="lowerDentureUsage" value={opt} checked={oralScreening.lowerDentureUsage === opt} onChange={(e) => setOralScreening({...oralScreening, lowerDentureUsage: e.target.value})} className="mr-1 text-blue-600" /> 
+                      <span className={oralScreening.lowerDentureUsage === opt ? 'text-blue-700 font-bold' : 'text-gray-700'}>{opt}</span>
                     </label>
                   ))}
                 </div>
@@ -516,9 +520,9 @@ export default function OralHealthAssessment() {
               <label className="block text-sm font-bold text-gray-800 mb-2">其它口腔疾病與異常 (可複選)</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {['緊咬', '牙齦炎', '牙周病', '口腔黏膜異常', '其它'].map(opt => (
-                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.otherDiseases.includes(opt) ? 'bg-blue-100 border-blue-400' : 'bg-gray-50'}`}>
+                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.otherDiseases.includes(opt) ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
                     <input type="checkbox" checked={oralScreening.otherDiseases.includes(opt)} onChange={() => handleDiseaseToggle(opt)} className="w-4 h-4 text-blue-600 mr-2 rounded" />
-                    <span className="text-sm">{opt}</span>
+                    <span className="text-sm font-medium">{opt}</span>
                   </label>
                 ))}
               </div>
