@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
-import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
+import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown, ArrowRight, User, Calendar, MapPin, Activity } from 'lucide-react';
 
 // --- 資料定義 ---
 const REGIONS = [
   '花蓮市', '吉安鄉', '新城鄉', '秀林鄉', '壽豐鄉', 
   '鳳林鎮', '萬榮鄉', '光復鄉', '卓溪鄉', '豐濱鄉', 
   '瑞穗鄉', '玉里鎮', '富里鄉'
+];
+
+const OF5_QUESTIONS = [
+  { id: 'q1', text: '您的天然牙齒還剩下多少顆？', opts: [{label: '0-19 顆', val: 1}, {label: '≧ 20 顆', val: 0}] },
+  { id: 'q2', text: '與6個月前相比，您吃硬的食物是否有困難？', opts: [{label: '是', val: 1}, {label: '否', val: 0}] },
+  { id: 'q3', text: '您最近是否被茶或湯嗆到了？', opts: [{label: '是', val: 1}, {label: '否', val: 0}] },
+  { id: 'q4', text: '您是否經常感到口乾？', opts: [{label: '是', val: 1}, {label: '否', val: 0}] },
+  { id: 'q5', text: '您最近在發音清晰度方面是否感到困難，或發「ta」音的速度異常？', opts: [{label: '是', val: 1}, {label: '否', val: 0}] },
 ];
 
 const OFI8_QUESTIONS = [
@@ -36,39 +44,64 @@ const OHAT_CATEGORIES = [
   { id: 'pain', name: '牙齒疼痛', opts: ['沒有行為、言語或生理現象表示', '有行為或言語現象表示(拉臉、咬唇)', '有生理現象表示(臉腫、大片潰瘍)'] },
 ];
 
-const OF5_QUESTIONS = [
-  { id: 'q1', text: '您的天然牙齒還剩下多少顆？', opts: [{label: '0-19 顆', val: 1}, {label: '≧ 20 顆', val: 0}] },
-  { id: 'q2', text: '與6個月前相比，您吃硬的食物是否有困難？', opts: [{label: '是', val: 1}, {label: '否', val: 0}] },
-  { id: 'q3', text: '您最近是否被茶或湯嗆到了？', opts: [{label: '是', val: 1}, {label: '否', val: 0}] },
-  { id: 'q4', text: '您是否經常感到口乾？', opts: [{label: '是', val: 1}, {label: '否', val: 0}] },
-  { id: 'q5', text: '您最近在發音清晰度方面是否感到困難，或發「ta」音的速度異常？', opts: [{label: '是', val: 1}, {label: '否', val: 0}] },
-];
-
 // 牙齒編號 (FDI 系統)
 const UPPER_TEETH = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
 const LOWER_TEETH = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
 
+// --- 區塊渲染組件 ---
+const Card = ({ title, children, score, alertCondition, alertText }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+    <div className="bg-blue-800 px-4 py-3 flex justify-between items-center">
+      <h2 className="text-lg font-bold text-white">{title}</h2>
+      {score !== undefined && (
+        <div className="bg-white/20 px-3 py-1 rounded-full text-white text-sm font-medium">
+          總分: {score}
+        </div>
+      )}
+    </div>
+    {alertCondition && (
+      <div className="bg-red-50 px-4 py-2 border-b border-red-100 flex items-center text-red-600 text-sm font-bold">
+        <AlertCircle className="w-4 h-4 mr-2" />
+        {alertText}
+      </div>
+    )}
+    <div className="p-4">
+      {children}
+    </div>
+  </div>
+);
+
+// 姓名遮蔽函數 (例: 葉梓賢 -> 葉Ｏ賢)
+const maskName = (name) => {
+  if (!name) return '';
+  if (name.length === 1) return name;
+  if (name.length === 2) return name[0] + 'Ｏ';
+  return name[0] + 'Ｏ'.repeat(name.length - 2) + name[name.length - 1];
+};
+
 export default function OralHealthAssessment() {
   // --- 狀態管理 ---
   const [patientInfo, setPatientInfo] = useState({ name: '', id: '', date: '', region: '' });
+  const [of5, setOf5] = useState({});
   const [ofi8, setOfi8] = useState({});
   const [eat10, setEat10] = useState({});
   const [tci, setTci] = useState(Array(9).fill(0));
   const [ohat, setOhat] = useState({});
-  const [of5, setOf5] = useState({});
   
-  // 口篩表狀態
   const [oralScreening, setOralScreening] = useState({
     dietMethod: '', foodType: '', eatingAbility: '',
-    dentalStatus: {}, // 牙齒現況紀錄 { '18': 'D', '17': 'M', ... }
+    dentalStatus: {}, 
     upperDenture: '', upperDentureUsage: '',
     lowerDenture: '', lowerDentureUsage: '',
     otherDiseases: []
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
-  // --- 計算分數 ---
+  // --- 計算分數與邏輯 ---
+  const calculateOF5 = () => Object.values(of5).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+  
   const calculateOFI8 = () => {
     let score = 0;
     OFI8_QUESTIONS.forEach(q => {
@@ -81,7 +114,41 @@ export default function OralHealthAssessment() {
   const calculateEAT10 = () => Object.values(eat10).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
   const calculateTCI = () => ((tci.reduce((a, b) => a + b, 0) / 18) * 100).toFixed(2);
   const calculateOHAT = () => Object.values(ohat).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
-  const calculateOF5 = () => Object.values(of5).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+
+  // 取得 OHAT 2分的項目名稱
+  const getOhatItemsWith2 = () => {
+    return OHAT_CATEGORIES.filter(cat => ohat[cat.id] === 2).map(cat => cat.name);
+  };
+
+  // 初步結論：疑似口腔衰弱
+  const isSuspectedFrailty = calculateOF5() >= 2 || calculateOFI8() >= 4;
+
+  // 風險判定邏輯
+  const eat10Score = calculateEAT10();
+  const tciScore = parseFloat(calculateTCI());
+  const ohatScore = calculateOHAT();
+  const ohatItemsWith2 = getOhatItemsWith2();
+  
+  const meetEat10 = eat10Score >= 3;
+  const meetTci = tciScore >= 50;
+  const meetOhat = ohatScore >= 4 || ohatItemsWith2.length > 0;
+
+  // 三項皆符合為高風險，任一未達標為低風險
+  const isHighRisk = meetEat10 && meetTci && meetOhat;
+
+  // 最終評估結果字串
+  let finalResult = '';
+  let finalAdvice = '';
+  if (!isSuspectedFrailty) {
+    finalResult = '無口腔衰弱';
+    finalAdvice = '建議保持良好口腔衛生習慣，定期回診檢查。';
+  } else if (isHighRisk) {
+    finalResult = '高風險個案 (疑似口腔衰弱)';
+    finalAdvice = '建議每 3 個月複評，並優先轉介相關專業人員。';
+  } else {
+    finalResult = '低風險個案 (疑似口腔衰弱)';
+    finalAdvice = '建議每 6 個月複評，並加強口腔衛生與吞嚥衛教。';
+  }
 
   // 處理口篩表複選題
   const handleDiseaseToggle = (disease) => {
@@ -95,14 +162,10 @@ export default function OralHealthAssessment() {
     });
   };
 
-  // 處理牙齒狀態變更
   const handleDentalStatusChange = (tooth, status) => {
     setOralScreening(prev => ({
       ...prev,
-      dentalStatus: {
-        ...prev.dentalStatus,
-        [tooth]: status
-      }
+      dentalStatus: { ...prev.dentalStatus, [tooth]: status }
     }));
   };
 
@@ -120,63 +183,129 @@ export default function OralHealthAssessment() {
       id: patientInfo.id,
       date: patientInfo.date,
       region: patientInfo.region,
-      ofi8Score: calculateOFI8(),
-      eat10Score: calculateEAT10(),
-      tciScore: calculateTCI(),
-      ohatScore: calculateOHAT(),
       of5Score: calculateOF5(),
-      oralScreening: JSON.stringify(oralScreening)
+      ofi8Score: calculateOFI8(),
+      eat10Score: eat10Score,
+      tciScore: tciScore,
+      ohatScore: ohatScore,
+      oralScreening: JSON.stringify(oralScreening),
+      finalResult: finalResult
     };
 
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1i2bQ61kLAni9GE4ZpKtdE51BIZaecTn9lOrLf_Rxexi9zhqxm4_aXb1Vm4dAITcw/exec';
 
     try {
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
+      await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
-      
-      const result = await response.json();
-      if (result.status === 'success' || result.result === 'success') {
-        alert('儲存成功！');
-      } else {
-        alert('儲存成功，但回傳格式未確認。');
-      }
+      // 無論回傳結果為何，都顯示總結畫面
+      setShowSummary(true);
+      window.scrollTo(0, 0);
     } catch (error) {
       console.error('Error:', error);
       alert('請求已送出！請檢查 Google 試算表是否有新增資料。');
+      setShowSummary(true);
+      window.scrollTo(0, 0);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // --- 區塊渲染組件 ---
-  const Card = ({ title, children, score, alertCondition, alertText }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-      <div className="bg-blue-800 px-4 py-3 flex justify-between items-center">
-        <h2 className="text-lg font-bold text-white">{title}</h2>
-        {score !== undefined && (
-          <div className="bg-white/20 px-3 py-1 rounded-full text-white text-sm font-medium">
-            總分: {score}
+  // --- 總結畫面 ---
+  if (showSummary) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-10 px-4 flex flex-col items-center">
+        <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+          <div className={`px-6 py-8 text-center ${!isSuspectedFrailty ? 'bg-green-600' : isHighRisk ? 'bg-red-600' : 'bg-yellow-500'}`}>
+            <CheckCircle2 className="w-16 h-16 text-white mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-white mb-2">評估已完成</h1>
+            <p className="text-white/90 text-lg">{finalResult}</p>
           </div>
-        )}
-      </div>
-      {alertCondition && (
-        <div className="bg-red-50 px-4 py-2 border-b border-red-100 flex items-center text-red-600 text-sm font-bold">
-          <AlertCircle className="w-4 h-4 mr-2" />
-          {alertText}
-        </div>
-      )}
-      <div className="p-4">
-        {children}
-      </div>
-    </div>
-  );
+          
+          <div className="p-6 md:p-8 space-y-8">
+            {/* 基本資料 */}
+            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <div className="flex items-center text-gray-700">
+                <User className="w-5 h-5 mr-2 text-gray-400" />
+                <span className="font-medium">{maskName(patientInfo.name)}</span>
+              </div>
+              <div className="flex items-center text-gray-700">
+                <MapPin className="w-5 h-5 mr-2 text-gray-400" />
+                <span className="font-medium">{patientInfo.region}</span>
+              </div>
+              <div className="flex items-center text-gray-700 col-span-2">
+                <Calendar className="w-5 h-5 mr-2 text-gray-400" />
+                <span className="font-medium">{patientInfo.date || '未填寫日期'}</span>
+              </div>
+            </div>
 
+            {/* 分數總覽 */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Activity className="w-5 h-5 mr-2 text-blue-600" />
+                各項評估分數
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                  <div className="text-sm text-blue-800 font-bold mb-1">OF-5</div>
+                  <div className="text-2xl font-black text-blue-900">{calculateOF5()} <span className="text-sm font-normal">分</span></div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                  <div className="text-sm text-blue-800 font-bold mb-1">OFI-8</div>
+                  <div className="text-2xl font-black text-blue-900">{calculateOFI8()} <span className="text-sm font-normal">分</span></div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                  <div className="text-sm text-blue-800 font-bold mb-1">EAT-10</div>
+                  <div className="text-2xl font-black text-blue-900">{eat10Score} <span className="text-sm font-normal">分</span></div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                  <div className="text-sm text-blue-800 font-bold mb-1">TCI</div>
+                  <div className="text-2xl font-black text-blue-900">{tciScore} <span className="text-sm font-normal">%</span></div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                  <div className="text-sm text-blue-800 font-bold mb-1">OHAT</div>
+                  <div className="text-2xl font-black text-blue-900">{ohatScore} <span className="text-sm font-normal">分</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* OHAT 異常項目 */}
+            {ohatItemsWith2.length > 0 && (
+              <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                <h4 className="text-sm font-bold text-red-800 mb-2">OHAT 獲得 2 分之項目：</h4>
+                <div className="flex flex-wrap gap-2">
+                  {ohatItemsWith2.map(item => (
+                    <span key={item} className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 處置建議 */}
+            <div className="bg-gray-800 text-white p-5 rounded-xl">
+              <h4 className="font-bold mb-2 text-gray-300">處置建議</h4>
+              <p className="text-lg font-medium">{finalAdvice}</p>
+            </div>
+
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors"
+            >
+              返回建立新評估
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- 主填寫畫面 ---
   return (
     <div className="min-h-screen bg-gray-100 pb-24">
-      {/* 頂部導航 */}
       <div className="bg-blue-900 shadow-md sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center">
           <ClipboardList className="w-6 h-6 text-white mr-3" />
@@ -235,39 +364,72 @@ export default function OralHealthAssessment() {
           </div>
         </Card>
 
-        {/* 2. OFI-8 */}
+        {/* 2. OF-5 */}
         <Card 
-          title="口腔衰弱指數8 (OFI-8)" 
-          score={calculateOFI8()} 
-          alertCondition={calculateOFI8() >= 4} 
-          alertText="疑似口腔衰弱 (≥4分)"
+          title="口腔衰弱五項量表 (OF-5)" 
+          score={calculateOF5()} 
+          alertCondition={calculateOF5() >= 2} 
+          alertText="異常 (≥2項為是)"
         >
           <div className="space-y-4">
-            {OFI8_QUESTIONS.map((q) => (
+            {OF5_QUESTIONS.map((q) => (
               <div key={q.id} className="flex flex-col pb-4 border-b border-gray-100 last:border-0">
-                <span className="text-sm text-gray-800 mb-3 font-medium">{q.id}. {q.text}</span>
-                <div className="flex space-x-6">
-                  {/* 「是」的按鈕 */}
-                  <label className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${ofi8[q.id] === 'yes' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
-                    <input type="radio" name={`ofi8-${q.id}`} value="yes" checked={ofi8[q.id] === 'yes'} onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium">是</span>
-                  </label>
-                  {/* 「否」的按鈕 */}
-                  <label className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${ofi8[q.id] === 'no' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
-                    <input type="radio" name={`ofi8-${q.id}`} value="no" checked={ofi8[q.id] === 'no'} onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium">否</span>
-                  </label>
+                <span className="text-sm text-gray-800 mb-3 font-medium">{q.text}</span>
+                <div className="flex space-x-4">
+                  {q.opts.map(opt => (
+                    <label key={opt.label} className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${of5[q.id] === opt.val ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
+                      <input type="radio" name={`of5-${q.id}`} value={opt.val} checked={of5[q.id] === opt.val} onChange={() => setOf5({...of5, [q.id]: opt.val})} className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium">{opt.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
             ))}
           </div>
         </Card>
 
-        {/* 3. EAT-10 */}
+        {/* 3. OFI-8 */}
+        <Card 
+          title="口腔衰弱指數8 (OFI-8)" 
+          score={calculateOFI8()} 
+          alertCondition={calculateOFI8() >= 4} 
+          alertText="異常 (≥4分)"
+        >
+          <div className="space-y-4">
+            {OFI8_QUESTIONS.map((q) => (
+               <div key={q.id} className="flex flex-col pb-4 border-b border-gray-100 last:border-0">
+                 <span className="text-sm text-gray-800 mb-3 font-medium">{q.id}. {q.text}</span>
+                 <div className="flex space-x-6">
+                   <label className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${ofi8[q.id] === 'yes' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
+                     <input type="radio" name={`ofi8-${q.id}`} value="yes" checked={ofi8[q.id] === 'yes'} onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-4 h-4 text-blue-600" />
+                     <span className="text-sm font-medium">是</span>
+                   </label>
+                   <label className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${ofi8[q.id] === 'no' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
+                     <input type="radio" name={`ofi8-${q.id}`} value="no" checked={ofi8[q.id] === 'no'} onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-4 h-4 text-blue-600" />
+                     <span className="text-sm font-medium">否</span>
+                   </label>
+                 </div>
+               </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* 初步評估結論區塊 */}
+        <div className={`p-4 rounded-xl border-2 flex items-center justify-between ${isSuspectedFrailty ? 'bg-yellow-50 border-yellow-400' : 'bg-green-50 border-green-400'}`}>
+          <div>
+            <h3 className={`text-lg font-bold ${isSuspectedFrailty ? 'text-yellow-800' : 'text-green-800'}`}>初步評估結論</h3>
+            <p className={`text-sm mt-1 ${isSuspectedFrailty ? 'text-yellow-700' : 'text-green-700'}`}>
+              {isSuspectedFrailty ? 'OF-5 ≥ 2 或 OFI-8 ≥ 4，判定為「疑似口腔衰弱」。請繼續完成下方評估以確認風險等級。' : '目前指標正常，無明顯口腔衰弱跡象。仍可繼續完成下方評估。'}
+            </p>
+          </div>
+          <ArrowRight className={`w-8 h-8 hidden sm:block ${isSuspectedFrailty ? 'text-yellow-500' : 'text-green-500'}`} />
+        </div>
+
+        {/* 4. EAT-10 */}
         <Card 
           title="吞嚥困難篩選 (EAT-10)" 
-          score={calculateEAT10()} 
-          alertCondition={calculateEAT10() >= 3} 
+          score={eat10Score} 
+          alertCondition={eat10Score >= 3} 
           alertText="異常 (≥3分)"
         >
           <p className="text-xs text-gray-500 mb-4">0 = 沒有問題, 4 = 問題很嚴重</p>
@@ -288,11 +450,11 @@ export default function OralHealthAssessment() {
           </div>
         </Card>
 
-        {/* 4. TCI */}
+        {/* 5. TCI */}
         <Card 
           title="舌苔指數 (TCI)" 
-          score={`${calculateTCI()}%`} 
-          alertCondition={parseFloat(calculateTCI()) >= 50} 
+          score={`${tciScore}%`} 
+          alertCondition={tciScore >= 50} 
           alertText="異常 (≥50%)"
         >
           <p className="text-xs text-gray-500 mb-4 text-center">將舌頭區分為九宮格。0: 無舌苔, 1: 薄舌苔, 2: 厚舌苔</p>
@@ -319,12 +481,12 @@ export default function OralHealthAssessment() {
           </div>
         </Card>
 
-        {/* 5. OHAT */}
+        {/* 6. OHAT */}
         <Card 
           title="口腔健康評估 (OHAT)" 
-          score={calculateOHAT()} 
-          alertCondition={calculateOHAT() >= 4} 
-          alertText="異常 (≥4分)"
+          score={ohatScore} 
+          alertCondition={ohatScore >= 4 || ohatItemsWith2.length > 0} 
+          alertText="異常 (總分≥4分 或 單項達2分)"
         >
           <div className="space-y-6">
             {OHAT_CATEGORIES.map((cat) => (
@@ -338,30 +500,6 @@ export default function OralHealthAssessment() {
                         <span className={`text-sm font-medium ${ohat[cat.id] === idx ? 'text-blue-900' : 'text-gray-800'}`}>{idx} 分</span>
                         <span className="text-xs text-gray-500 mt-1">{opt}</span>
                       </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* 6. OF-5 */}
-        <Card 
-          title="口腔衰弱五項量表 (OF-5)" 
-          score={calculateOF5()} 
-          alertCondition={calculateOF5() >= 2} 
-          alertText="疑似口腔衰弱 (≥2項為是)"
-        >
-          <div className="space-y-4">
-            {OF5_QUESTIONS.map((q) => (
-              <div key={q.id} className="flex flex-col pb-4 border-b border-gray-100 last:border-0">
-                <span className="text-sm text-gray-800 mb-3 font-medium">{q.text}</span>
-                <div className="flex space-x-4">
-                  {q.opts.map(opt => (
-                    <label key={opt.label} className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${of5[q.id] === opt.val ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
-                      <input type="radio" name={`of5-${q.id}`} value={opt.val} checked={of5[q.id] === opt.val} onChange={() => setOf5({...of5, [q.id]: opt.val})} className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium">{opt.label}</span>
                     </label>
                   ))}
                 </div>
