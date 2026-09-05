@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown, ArrowRight, User, Calendar, MapPin, Activity } from 'lucide-react';
+import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown, ArrowRight, User, Calendar, MapPin, Activity, Stethoscope } from 'lucide-react';
 
 // --- 資料定義 ---
 const REGIONS = [
@@ -79,6 +79,23 @@ const maskName = (name) => {
   return name[0] + 'Ｏ'.repeat(name.length - 2) + name[name.length - 1];
 };
 
+// 牙齒圖示組件 (用於總結畫面)
+const ToothIcon = ({ number, status }) => {
+  const isMissing = status === 'M';
+  const label = ['D', 'RR', 'F'].includes(status) ? status : '';
+  
+  return (
+    <div className="flex flex-col items-center mx-0.5">
+      <span className="text-[10px] text-gray-500 mb-1 font-medium">{number}</span>
+      <div className={`w-6 h-8 flex items-center justify-center border-2 ${isMissing ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-400 text-gray-800'} rounded-t-lg rounded-b-md relative overflow-hidden shadow-sm`}>
+        {/* 模擬牙根的線條 */}
+        {!isMissing && <div className="absolute bottom-0 w-[2px] h-2.5 bg-gray-300"></div>}
+        <span className="text-[11px] font-bold z-10">{label}</span>
+      </div>
+    </div>
+  );
+};
+
 export default function OralHealthAssessment() {
   // --- 狀態管理 ---
   const [patientInfo, setPatientInfo] = useState({ name: '', id: '', date: '', region: '' });
@@ -98,6 +115,20 @@ export default function OralHealthAssessment() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+
+  // --- 檢查表單是否填寫完畢 ---
+  const isFormComplete = 
+    patientInfo.name !== '' && 
+    patientInfo.id !== '' && 
+    patientInfo.region !== '' && 
+    patientInfo.date !== '' &&
+    Object.keys(of5).length === 5 &&
+    Object.keys(ofi8).length === 8 &&
+    Object.keys(eat10).length === 10 &&
+    Object.keys(ohat).length === 8 &&
+    oralScreening.dietMethod !== '' &&
+    oralScreening.foodType !== '' &&
+    oralScreening.eatingAbility !== '';
 
   // --- 計算分數與邏輯 ---
   const calculateOF5 = () => Object.values(of5).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
@@ -171,11 +202,6 @@ export default function OralHealthAssessment() {
 
   // --- 儲存資料 ---
   const handleSave = async () => {
-    if (!patientInfo.name || !patientInfo.id || !patientInfo.region) {
-      alert('請填寫姓名、身分證字號與地區！');
-      return;
-    }
-
     setIsSubmitting(true);
 
     const payload = {
@@ -200,7 +226,6 @@ export default function OralHealthAssessment() {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
-      // 無論回傳結果為何，都顯示總結畫面
       setShowSummary(true);
       window.scrollTo(0, 0);
     } catch (error) {
@@ -217,7 +242,7 @@ export default function OralHealthAssessment() {
   if (showSummary) {
     return (
       <div className="min-h-screen bg-gray-50 py-10 px-4 flex flex-col items-center">
-        <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
           <div className={`px-6 py-8 text-center ${!isSuspectedFrailty ? 'bg-green-600' : isHighRisk ? 'bg-red-600' : 'bg-yellow-500'}`}>
             <CheckCircle2 className="w-16 h-16 text-white mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-white mb-2">評估已完成</h1>
@@ -237,7 +262,7 @@ export default function OralHealthAssessment() {
               </div>
               <div className="flex items-center text-gray-700 col-span-2">
                 <Calendar className="w-5 h-5 mr-2 text-gray-400" />
-                <span className="font-medium">{patientInfo.date || '未填寫日期'}</span>
+                <span className="font-medium">{patientInfo.date}</span>
               </div>
             </div>
 
@@ -284,6 +309,81 @@ export default function OralHealthAssessment() {
                 </div>
               </div>
             )}
+
+            {/* 口篩表紀錄總結 */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Stethoscope className="w-5 h-5 mr-2 text-blue-600" />
+                口篩表紀錄
+              </h3>
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-6">
+                
+                {/* 牙齒圖表 */}
+                <div className="bg-gray-50 rounded-lg p-4 overflow-x-auto border border-gray-200">
+                  <div className="min-w-max">
+                    {/* 上顎 */}
+                    <div className="flex justify-center mb-4">
+                      {UPPER_TEETH.map(t => (
+                        <ToothIcon key={t} number={t} status={oralScreening.dentalStatus[t]} />
+                      ))}
+                    </div>
+                    {/* 分隔線 */}
+                    <div className="w-full h-px bg-gray-400 my-2"></div>
+                    {/* 下顎 */}
+                    <div className="flex justify-center mt-4">
+                      {LOWER_TEETH.map(t => (
+                        <ToothIcon key={t} number={t} status={oralScreening.dentalStatus[t]} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-4 text-xs text-gray-500 text-center">
+                    <span className="inline-block w-3 h-3 bg-gray-800 mr-1 align-middle"></span> 缺牙(M) &nbsp;&nbsp;
+                    <span className="font-bold">D</span> 窩洞 &nbsp;&nbsp;
+                    <span className="font-bold">RR</span> 殘根 &nbsp;&nbsp;
+                    <span className="font-bold">F</span> 填補
+                  </div>
+                </div>
+
+                {/* 其他口篩資訊 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex justify-between border-b pb-1">
+                      <span className="text-gray-500">飲食方式</span>
+                      <span className="font-bold text-gray-800">{oralScreening.dietMethod || '未填寫'}</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-1">
+                      <span className="text-gray-500">食物型態</span>
+                      <span className="font-bold text-gray-800">{oralScreening.foodType || '未填寫'}</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-1">
+                      <span className="text-gray-500">飲食能力</span>
+                      <span className="font-bold text-gray-800">{oralScreening.eatingAbility || '未填寫'}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex justify-between border-b pb-1">
+                      <span className="text-gray-500">上顎假牙</span>
+                      <span className="font-bold text-gray-800">
+                        {oralScreening.upperDenture || '無'} {oralScreening.upperDentureUsage && `(${oralScreening.upperDentureUsage})`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-b pb-1">
+                      <span className="text-gray-500">下顎假牙</span>
+                      <span className="font-bold text-gray-800">
+                        {oralScreening.lowerDenture || '無'} {oralScreening.lowerDentureUsage && `(${oralScreening.lowerDentureUsage})`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-b pb-1">
+                      <span className="text-gray-500">其它異常</span>
+                      <span className="font-bold text-gray-800">
+                        {oralScreening.otherDiseases.length > 0 ? oralScreening.otherDiseases.join('、') : '無'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
 
             {/* 處置建議 */}
             <div className="bg-gray-800 text-white p-5 rounded-xl">
@@ -671,26 +771,28 @@ export default function OralHealthAssessment() {
 
       </div>
 
-      {/* 底部固定儲存按鈕 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50">
-        <div className="max-w-3xl mx-auto flex justify-between items-center">
-          <div className="hidden sm:block text-sm text-gray-500">
-            請確認所有資料皆已填寫完畢
+      {/* 底部固定儲存按鈕 (條件顯示) */}
+      {isFormComplete && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="max-w-3xl mx-auto flex justify-between items-center">
+            <div className="hidden sm:block text-sm text-gray-500">
+              所有資料皆已填寫完畢，可以送出評估
+            </div>
+            <button 
+              onClick={handleSave}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-5 h-5 mr-2" />
+              )}
+              {isSubmitting ? '資料儲存中...' : '送出評估結果'}
+            </button>
           </div>
-          <button 
-            onClick={handleSave}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            ) : (
-              <CheckCircle2 className="w-5 h-5 mr-2" />
-            )}
-            {isSubmitting ? '資料儲存中...' : '送出評估結果'}
-          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
