@@ -71,7 +71,7 @@ const Card = ({ title, children, score, alertCondition, alertText }) => (
   </div>
 );
 
-// 姓名遮蔽函數 (例: 葉梓賢 -> 葉Ｏ賢)
+// 姓名遮蔽函數
 const maskName = (name) => {
   if (!name) return '';
   if (name.length === 1) return name;
@@ -79,7 +79,7 @@ const maskName = (name) => {
   return name[0] + 'Ｏ'.repeat(name.length - 2) + name[name.length - 1];
 };
 
-// 牙齒圖示組件 (用於總結畫面)
+// 牙齒圖示組件
 const ToothIcon = ({ number, status }) => {
   const isMissing = status === 'M';
   const label = ['D', 'RR', 'F'].includes(status) ? status : '';
@@ -88,7 +88,6 @@ const ToothIcon = ({ number, status }) => {
     <div className="flex flex-col items-center mx-0.5">
       <span className="text-[10px] text-gray-500 mb-1 font-medium">{number}</span>
       <div className={`w-6 h-8 flex items-center justify-center border-2 ${isMissing ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-400 text-gray-800'} rounded-t-lg rounded-b-md relative overflow-hidden shadow-sm`}>
-        {/* 模擬牙根的線條 */}
         {!isMissing && <div className="absolute bottom-0 w-[2px] h-2.5 bg-gray-300"></div>}
         <span className="text-[11px] font-bold z-10">{label}</span>
       </div>
@@ -146,15 +145,12 @@ export default function OralHealthAssessment() {
   const calculateTCI = () => ((tci.reduce((a, b) => a + b, 0) / 18) * 100).toFixed(2);
   const calculateOHAT = () => Object.values(ohat).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
 
-  // 取得 OHAT 2分的項目名稱
   const getOhatItemsWith2 = () => {
     return OHAT_CATEGORIES.filter(cat => ohat[cat.id] === 2).map(cat => cat.name);
   };
 
-  // 初步結論：疑似口腔衰弱
   const isSuspectedFrailty = calculateOF5() >= 2 || calculateOFI8() >= 4;
 
-  // 風險判定邏輯
   const eat10Score = calculateEAT10();
   const tciScore = parseFloat(calculateTCI());
   const ohatScore = calculateOHAT();
@@ -164,10 +160,8 @@ export default function OralHealthAssessment() {
   const meetTci = tciScore >= 50;
   const meetOhat = ohatScore >= 4 || ohatItemsWith2.length > 0;
 
-  // 三項皆符合為高風險，任一未達標為低風險
   const isHighRisk = meetEat10 && meetTci && meetOhat;
 
-  // 最終評估結果字串
   let finalResult = '';
   let finalAdvice = '';
   if (!isSuspectedFrailty) {
@@ -181,7 +175,6 @@ export default function OralHealthAssessment() {
     finalAdvice = '建議每 6 個月複評，並加強口腔衛生與吞嚥衛教。';
   }
 
-  // 處理口篩表複選題
   const handleDiseaseToggle = (disease) => {
     setOralScreening(prev => {
       const current = prev.otherDiseases;
@@ -202,6 +195,8 @@ export default function OralHealthAssessment() {
 
   // --- 儲存資料 ---
   const handleSave = async () => {
+    if (!isFormComplete) return;
+    
     setIsSubmitting(true);
 
     const payload = {
@@ -321,15 +316,12 @@ export default function OralHealthAssessment() {
                 {/* 牙齒圖表 */}
                 <div className="bg-gray-50 rounded-lg p-4 overflow-x-auto border border-gray-200">
                   <div className="min-w-max">
-                    {/* 上顎 */}
                     <div className="flex justify-center mb-4">
                       {UPPER_TEETH.map(t => (
                         <ToothIcon key={t} number={t} status={oralScreening.dentalStatus[t]} />
                       ))}
                     </div>
-                    {/* 分隔線 */}
                     <div className="w-full h-px bg-gray-400 my-2"></div>
-                    {/* 下顎 */}
                     <div className="flex justify-center mt-4">
                       {LOWER_TEETH.map(t => (
                         <ToothIcon key={t} number={t} status={oralScreening.dentalStatus[t]} />
@@ -405,7 +397,7 @@ export default function OralHealthAssessment() {
 
   // --- 主填寫畫面 ---
   return (
-    <div className="min-h-screen bg-gray-100 pb-24">
+    <div className="min-h-screen bg-gray-100 pb-28">
       <div className="bg-blue-900 shadow-md sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center">
           <ClipboardList className="w-6 h-6 text-white mr-3" />
@@ -771,28 +763,38 @@ export default function OralHealthAssessment() {
 
       </div>
 
-      {/* 底部固定儲存按鈕 (條件顯示) */}
-      {isFormComplete && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 animate-in slide-in-from-bottom-5 duration-300">
-          <div className="max-w-3xl mx-auto flex justify-between items-center">
-            <div className="hidden sm:block text-sm text-gray-500">
-              所有資料皆已填寫完畢，可以送出評估
-            </div>
-            <button 
-              onClick={handleSave}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-5 h-5 mr-2" />
-              )}
-              {isSubmitting ? '資料儲存中...' : '送出評估結果'}
-            </button>
+      {/* 底部固定儲存按鈕 (常駐顯示，未填完時反灰) */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50">
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div className="text-sm font-medium text-center sm:text-left w-full sm:w-auto">
+            {isFormComplete ? (
+              <span className="text-green-600 flex items-center justify-center sm:justify-start">
+                <CheckCircle2 className="w-4 h-4 mr-1" /> 所有必填資料皆已完成
+              </span>
+            ) : (
+              <span className="text-red-500 flex items-center justify-center sm:justify-start">
+                <AlertCircle className="w-4 h-4 mr-1" /> 請完成所有必填項目以送出
+              </span>
+            )}
           </div>
+          <button 
+            onClick={handleSave}
+            disabled={!isFormComplete || isSubmitting}
+            className={`w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+              isFormComplete 
+                ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 cursor-pointer' 
+                : 'bg-gray-300 cursor-not-allowed'
+            }`}
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 mr-2" />
+            )}
+            {isSubmitting ? '資料儲存中...' : '送出評估結果'}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
