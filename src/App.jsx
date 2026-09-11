@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown, ArrowRight, BookOpen } from 'lucide-react';
+import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown, ArrowRight, BookOpen, AlertTriangle } from 'lucide-react';
 
 // --- 資料定義 ---
 const REGIONS = [
@@ -69,19 +69,27 @@ const Card = ({ title, children, score, alertCondition, alertText }) => (
   </div>
 );
 
+// 姓名遮蔽處理函數 (葉梓賢 -> 葉Ｏ賢)
+const maskName = (name) => {
+  if (!name) return '';
+  if (name.length === 1) return name;
+  if (name.length === 2) return name[0] + 'Ｏ';
+  return name[0] + 'Ｏ'.repeat(name.length - 2) + name[name.length - 1];
+};
+
 export default function OralHealthAssessment() {
   // --- 狀態管理 ---
   const [patientInfo, setPatientInfo] = useState({ 
     name: '', id: '', date: '', region: '', 
     birthDate: '', identityType: '', 
-    assessmentUnit: '花蓮縣牙醫師公會' // 更新：固定帶入花蓮縣牙醫師公會
+    assessmentUnit: '花蓮縣牙醫師公會' 
   });
   const [of5, setOf5] = useState({});
   const [ofi8, setOfi8] = useState({});
   const [eat10, setEat10] = useState({});
   const [tci, setTci] = useState(Array(9).fill(0));
   const [ohat, setOhat] = useState({});
-  const [provideMaterials, setProvideMaterials] = useState(true); // 更新：預設為 true (已提供)
+  const [provideMaterials, setProvideMaterials] = useState(true); 
   
   const [oralScreening, setOralScreening] = useState({
     dietMethod: '', foodType: '', eatingAbility: '',
@@ -132,6 +140,32 @@ export default function OralHealthAssessment() {
   const isHighRisk = eat10Score >= 3 && tciScore >= 50 && (ohatScore >= 4 || ohatItemsWith2.length > 0);
 
   let finalResult = !isSuspectedFrailty ? '無口腔衰弱' : isHighRisk ? '高風險個案 (疑似口腔衰弱)' : '低風險個案 (疑似口腔衰弱)';
+
+  // --- 邏輯互斥檢查 ---
+  const getLogicConflicts = () => {
+    const conflicts = [];
+    // OF-5 第2項 vs OFI-8 第1項 (吃硬的食物)
+    if (of5['q2'] !== undefined && ofi8[1] !== undefined) {
+      if ((of5['q2'] === 1 && ofi8[1] === 'no') || (of5['q2'] === 0 && ofi8[1] === 'yes')) {
+        conflicts.push('「吃硬的食物有困難」在 OF-5 與 OFI-8 填寫結果不一致');
+      }
+    }
+    // OF-5 第3項 vs OFI-8 第2項 (嗆到)
+    if (of5['q3'] !== undefined && ofi8[2] !== undefined) {
+      if ((of5['q3'] === 1 && ofi8[2] === 'no') || (of5['q3'] === 0 && ofi8[2] === 'yes')) {
+        conflicts.push('「被茶或湯嗆到」在 OF-5 與 OFI-8 填寫結果不一致');
+      }
+    }
+    // OF-5 第4項 vs OFI-8 第4項 (口乾)
+    if (of5['q4'] !== undefined && ofi8[4] !== undefined) {
+      if ((of5['q4'] === 1 && ofi8[4] === 'no') || (of5['q4'] === 0 && ofi8[4] === 'yes')) {
+        conflicts.push('「經常口乾舌燥」在 OF-5 與 OFI-8 填寫結果不一致');
+      }
+    }
+    return conflicts;
+  };
+
+  const logicConflicts = getLogicConflicts();
 
   const handleDiseaseToggle = (disease) => {
     setOralScreening(prev => {
@@ -203,8 +237,63 @@ export default function OralHealthAssessment() {
             <h1 className="text-3xl font-bold text-white mb-2">評估已完成</h1>
             <p className="text-white/90 text-lg">{finalResult}</p>
           </div>
-          <div className="p-6 md:p-8 space-y-8">
-            <button onClick={() => window.location.reload()} className="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors">
+          
+          <div className="p-6 md:p-8 space-y-6">
+            <h2 className="text-xl font-bold text-gray-800 border-b pb-2">評估紀錄總結</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <span className="block text-sm text-gray-500 mb-1">地區</span>
+                <span className="font-bold text-gray-800">{patientInfo.region}</span>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <span className="block text-sm text-gray-500 mb-1">姓名</span>
+                <span className="font-bold text-gray-800">{maskName(patientInfo.name)}</span>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <span className="block text-sm text-gray-500 mb-1">評估日期</span>
+                <span className="font-bold text-gray-800">{patientInfo.date}</span>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <span className="block text-sm text-gray-500 mb-1">評估結果</span>
+                <span className={`font-bold ${!isSuspectedFrailty ? 'text-green-600' : isHighRisk ? 'text-red-600' : 'text-yellow-600'}`}>
+                  {finalResult}
+                </span>
+              </div>
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-800 mt-6 border-b pb-2">各項分數</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
+                <span className="block text-sm text-blue-800 mb-1">OF-5</span>
+                <span className="text-2xl font-bold text-blue-900">{calculateOF5()}</span>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
+                <span className="block text-sm text-blue-800 mb-1">OFI-8</span>
+                <span className="text-2xl font-bold text-blue-900">{calculateOFI8()}</span>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
+                <span className="block text-sm text-blue-800 mb-1">EAT-10</span>
+                <span className="text-2xl font-bold text-blue-900">{eat10Score}</span>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
+                <span className="block text-sm text-blue-800 mb-1">TCI</span>
+                <span className="text-2xl font-bold text-blue-900">{tciScore}%</span>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
+                <span className="block text-sm text-blue-800 mb-1">OHAT</span>
+                <span className="text-2xl font-bold text-blue-900">{ohatScore}</span>
+              </div>
+            </div>
+
+            <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+              <span className="block text-sm text-red-800 mb-1 font-bold">OHAT 達 2 分之項目</span>
+              <span className="text-red-900 font-medium">
+                {ohatItemsWith2.length > 0 ? ohatItemsWith2.join('、') : '無'}
+              </span>
+            </div>
+
+            <button onClick={() => window.location.reload()} className="w-full mt-8 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors">
               返回建立新評估
             </button>
           </div>
@@ -346,6 +435,23 @@ export default function OralHealthAssessment() {
           </div>
         </Card>
 
+        {/* 邏輯互斥警告區塊 */}
+        {logicConflicts.length > 0 && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm">
+            <div className="flex items-start">
+              <AlertTriangle className="w-6 h-6 text-red-500 mr-3 shrink-0" />
+              <div>
+                <h3 className="text-red-800 font-bold mb-1">填寫邏輯衝突提醒</h3>
+                <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                  {logicConflicts.map((msg, idx) => (
+                    <li key={idx}>{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 初步評估結論區塊 */}
         <div className={`p-4 rounded-xl border-2 flex items-center justify-between ${isSuspectedFrailty ? 'bg-yellow-50 border-yellow-400' : 'bg-green-50 border-green-400'}`}>
           <div>
@@ -439,7 +545,7 @@ export default function OralHealthAssessment() {
                   <span className="text-xs font-bold text-gray-600 block mb-1">上顎 (18-28)</span>
                   <div className="flex overflow-x-auto pb-2 space-x-1 snap-x">
                     {UPPER_TEETH.map(t => (
-                      <div key={t} className="flex flex-col items-center min-w-[3.5rem] snap-start">
+                      <div key={t} className="flex flex-col items-center min-w-14 snap-start">
                         <span className="text-xs font-bold text-gray-700">{t}</span>
                         <select className="mt-1 w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-1 focus:ring-blue-500" value={oralScreening.dentalStatus[t] || ''} onChange={(e) => handleDentalStatusChange(t, e.target.value)}>
                           <option value="">-</option><option value="D">D</option><option value="M">M</option><option value="RR">RR</option><option value="F">F</option>
@@ -452,7 +558,7 @@ export default function OralHealthAssessment() {
                   <span className="text-xs font-bold text-gray-600 block mb-1">下顎 (48-38)</span>
                   <div className="flex overflow-x-auto pb-2 space-x-1 snap-x">
                     {LOWER_TEETH.map(t => (
-                      <div key={t} className="flex flex-col items-center min-w-[3.5rem] snap-start">
+                      <div key={t} className="flex flex-col items-center min-w-14 snap-start">
                         <span className="text-xs font-bold text-gray-700">{t}</span>
                         <select className="mt-1 w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-1 focus:ring-blue-500" value={oralScreening.dentalStatus[t] || ''} onChange={(e) => handleDentalStatusChange(t, e.target.value)}>
                           <option value="">-</option><option value="D">D</option><option value="M">M</option><option value="RR">RR</option><option value="F">F</option>
@@ -566,7 +672,7 @@ export default function OralHealthAssessment() {
       </div>
 
       {/* 底部固定儲存按鈕 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
         <div className="max-w-3xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
           <div className="text-sm font-medium text-center sm:text-left w-full sm:w-auto">
             {isFormComplete ? (
