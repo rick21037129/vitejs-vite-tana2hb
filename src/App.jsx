@@ -47,6 +47,9 @@ const OHAT_CATEGORIES = [
 const UPPER_TEETH = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
 const LOWER_TEETH = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
 
+// 請確認這是您最新部署的 Google Apps Script 網址
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwpGSXCqXhbVhpTrWB84LkFBjCBGVFspDfzY4P2TLNx5KAq9stPXhvhB2sqoFqvYlI4/exec';
+
 const Card = ({ title, children, score, alertCondition, alertText, icon: Icon }) => (
   <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
     <div className="bg-blue-800 px-4 py-3 flex justify-between items-center">
@@ -81,7 +84,6 @@ const maskName = (name) => {
 
 export default function OralHealthAssessment() {
   // --- 狀態管理 ---
-  // appMode: 'home' (首頁), 'patient' (民眾填寫), 'handoff' (顯示3位數代碼), 'assistant_login' (助理輸入代碼), 'assistant' (助理填寫), 'summary' (完成)
   const [appMode, setAppMode] = useState('home'); 
   const [handoffCode, setHandoffCode] = useState('');
   const [inputCode, setInputCode] = useState('');
@@ -107,6 +109,9 @@ export default function OralHealthAssessment() {
     otherDiseases: []
   });
 
+  // 網路請求狀態
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- 檢查表單是否填寫完畢 ---
@@ -184,53 +189,84 @@ export default function OralHealthAssessment() {
     }));
   };
 
-  // --- 產生 3 位數交接代碼 ---
-  const handleGenerateHandoff = () => {
-    // 產生 100~999 的隨機數字
-    const code = Math.floor(100 + Math.random() * 900).toString();
+  // --- 產生 3 位數交接代碼 (送至 Google Sheets 暫存) ---
+  const handleGenerateHandoff = async () => {
+    setIsGeneratingCode(true);
     const dataToPass = { patientInfo, of5, ofi8, eat10 };
     
-    // 暫存到瀏覽器的 LocalStorage 中 (模擬資料庫)
-    localStorage.setItem(`oral_assessment_${code}`, JSON.stringify(dataToPass));
-    
-    setHandoffCode(code);
-    setAppMode('handoff');
-    window.scrollTo(0, 0);
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'saveTemp',
+          data: dataToPass
+        })
+      });
+      const result = await response.json();
+      
+      if (result.status === 'ok') {
+        setHandoffCode(result.code);
+        setAppMode('handoff');
+        window.scrollTo(0, 0);
+      } else {
+        alert('產生代碼失敗：' + result.message);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('網路連線異常，請確認網路狀態後再試一次');
+    } finally {
+      setIsGeneratingCode(false);
+    }
   };
 
-  // --- 助理輸入代碼載入資料 ---
-  const handleAssistantLogin = () => {
+  // --- 助理輸入代碼載入資料 (從 Google Sheets 讀取) ---
+  const handleAssistantLogin = async () => {
     if (inputCode.length !== 3) {
       setLoginError('請輸入完整的3位數代碼');
       return;
     }
     
-    const savedData = localStorage.getItem(`oral_assessment_${inputCode}`);
-    if (savedData) {
-      try {
-        const decodedData = JSON.parse(savedData);
+    setIsLoggingIn(true);
+    setLoginError('');
+
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'getTemp',
+          code: inputCode
+        })
+      });
+      const result = await response.json();
+      
+      if (result.status === 'ok') {
+        const decodedData = result.data;
         if (decodedData.patientInfo) setPatientInfo(decodedData.patientInfo);
         if (decodedData.of5) setOf5(decodedData.of5);
         if (decodedData.ofi8) setOfi8(decodedData.ofi8);
         if (decodedData.eat10) setEat10(decodedData.eat10);
         
         setAppMode('assistant');
-        setLoginError('');
         window.scrollTo(0, 0);
-      } catch (error) {
-        setLoginError('資料解析失敗，請重新輸入');
+      } else {
+        setLoginError(result.message || '找不到此代碼的資料，請確認代碼是否正確');
       }
-    } else {
-      setLoginError('找不到此代碼的資料，請確認代碼是否正確');
+    } catch (error) {
+      console.error('Error:', error);
+      setLoginError('網路連線異常，請確認網路狀態後再試一次');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
-  // --- 儲存資料 (助理端送出) ---
+  // --- 儲存資料 (助理端最終送出) ---
   const handleSave = async () => {
     if (!isAssistantFormComplete) return;
     setIsSubmitting(true);
 
-    const payload = {
+    const finalData = {
       name: patientInfo.name,
       idNumber: patientInfo.id,
       region: patientInfo.region,      
@@ -249,16 +285,15 @@ export default function OralHealthAssessment() {
       rawDetails: JSON.stringify(oralScreening)
     };
 
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwpGSXCqXhbVhpTrWB84LkFBjCBGVFspDfzY4P2TLNx5KAq9stPXhvhB2sqoFqvYlI4/exec';
-
     try {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          action: 'submitFinal',
+          data: finalData
+        })
       });
-      // 清除暫存
-      if (inputCode) localStorage.removeItem(`oral_assessment_${inputCode}`);
       setAppMode('summary');
       window.scrollTo(0, 0);
     } catch (error) {
@@ -301,12 +336,12 @@ export default function OralHealthAssessment() {
   if (appMode === 'assistant_login') {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-8 text-center">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-8 text-center relative">
           <button onClick={() => setAppMode('home')} className="absolute top-4 left-4 p-2 text-gray-500 hover:bg-gray-100 rounded-full">
             <Home className="w-6 h-6" />
           </button>
           
-          <KeyRound className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+          <KeyRound className="w-16 h-16 text-blue-600 mx-auto mb-4 mt-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">助理接手評估</h2>
           <p className="text-gray-600 mb-6">請輸入民眾手機畫面上顯示的 3 位數代碼</p>
           
@@ -322,8 +357,13 @@ export default function OralHealthAssessment() {
             {loginError && <p className="text-red-500 text-sm mt-2 font-medium">{loginError}</p>}
           </div>
 
-          <button onClick={handleAssistantLogin} className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center hover:bg-blue-700 transition-colors">
-            載入資料 <ArrowRight className="w-5 h-5 ml-2" />
+          <button 
+            onClick={handleAssistantLogin} 
+            disabled={isLoggingIn}
+            className={`w-full py-4 font-bold rounded-xl flex items-center justify-center transition-colors ${isLoggingIn ? 'bg-blue-400 text-white cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+          >
+            {isLoggingIn ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+            {isLoggingIn ? '載入中...' : <>載入資料 <ArrowRight className="w-5 h-5 ml-2" /></>}
           </button>
         </div>
       </div>
@@ -623,7 +663,7 @@ export default function OralHealthAssessment() {
                       <span className="text-xs font-bold text-gray-600 block mb-1">上顎 (18-28)</span>
                       <div className="flex overflow-x-auto pb-2 space-x-1 snap-x">
                         {UPPER_TEETH.map(t => (
-                          <div key={t} className="flex flex-col items-center min-w-[3.5rem] snap-start">
+                          <div key={t} className="flex flex-col items-center min-w-14 snap-start">
                             <span className="text-xs font-bold text-gray-700">{t}</span>
                             <select className="mt-1 w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-1 focus:ring-blue-500" value={oralScreening.dentalStatus[t] || ''} onChange={(e) => handleDentalStatusChange(t, e.target.value)}>
                               <option value="">-</option><option value="D">D</option><option value="M">M</option><option value="RR">RR</option><option value="F">F</option>
@@ -636,7 +676,7 @@ export default function OralHealthAssessment() {
                       <span className="text-xs font-bold text-gray-600 block mb-1">下顎 (48-38)</span>
                       <div className="flex overflow-x-auto pb-2 space-x-1 snap-x">
                         {LOWER_TEETH.map(t => (
-                          <div key={t} className="flex flex-col items-center min-w-[3.5rem] snap-start">
+                          <div key={t} className="flex flex-col items-center min-w-14 snap-start">
                             <span className="text-xs font-bold text-gray-700">{t}</span>
                             <select className="mt-1 w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-1 focus:ring-blue-500" value={oralScreening.dentalStatus[t] || ''} onChange={(e) => handleDentalStatusChange(t, e.target.value)}>
                               <option value="">-</option><option value="D">D</option><option value="M">M</option><option value="RR">RR</option><option value="F">F</option>
@@ -764,12 +804,13 @@ export default function OralHealthAssessment() {
               </div>
               <button 
                 onClick={handleGenerateHandoff}
-                disabled={!isPatientFormComplete}
+                disabled={!isPatientFormComplete || isGeneratingCode}
                 className={`w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white transition-colors ${
-                  isPatientFormComplete ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'
+                  isPatientFormComplete && !isGeneratingCode ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'
                 }`}
               >
-                <KeyRound className="w-5 h-5 mr-2" /> 產生 3 位數交接代碼
+                {isGeneratingCode ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <KeyRound className="w-5 h-5 mr-2" />}
+                {isGeneratingCode ? '產生中...' : '產生 3 位數交接代碼'}
               </button>
             </>
           )}
@@ -791,7 +832,7 @@ export default function OralHealthAssessment() {
                 onClick={handleSave}
                 disabled={!isAssistantFormComplete || isSubmitting}
                 className={`w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white transition-colors ${
-                  isAssistantFormComplete ? 'bg-green-600 hover:bg-green-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'
+                  isAssistantFormComplete && !isSubmitting ? 'bg-green-600 hover:bg-green-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'
                 }`}
               >
                 {isSubmitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
