@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown, ArrowRight, BookOpen, AlertTriangle, QrCode, Copy, User, Stethoscope } from 'lucide-react';
+import { ClipboardList, CheckCircle2, AlertCircle, Loader2, User, Stethoscope, KeyRound, ArrowRight, BookOpen, AlertTriangle, Home } from 'lucide-react';
 
 // --- 資料定義 ---
 const REGIONS = [
@@ -81,9 +81,11 @@ const maskName = (name) => {
 
 export default function OralHealthAssessment() {
   // --- 狀態管理 ---
-  // appMode: 'patient' (民眾填寫), 'handoff' (顯示QR Code), 'assistant' (助理填寫), 'summary' (完成)
-  const [appMode, setAppMode] = useState('patient'); 
-  const [handoffUrl, setHandoffUrl] = useState('');
+  // appMode: 'home' (首頁), 'patient' (民眾填寫), 'handoff' (顯示3位數代碼), 'assistant_login' (助理輸入代碼), 'assistant' (助理填寫), 'summary' (完成)
+  const [appMode, setAppMode] = useState('home'); 
+  const [handoffCode, setHandoffCode] = useState('');
+  const [inputCode, setInputCode] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   const [patientInfo, setPatientInfo] = useState({ 
     name: '', id: '', date: '', region: '', 
@@ -106,25 +108,6 @@ export default function OralHealthAssessment() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // --- 解析網址參數 (助理掃描 QR Code 後載入資料) ---
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const dataParam = params.get('data');
-    if (dataParam) {
-      try {
-        const decodedData = JSON.parse(decodeURIComponent(atob(dataParam)));
-        if (decodedData.patientInfo) setPatientInfo(decodedData.patientInfo);
-        if (decodedData.of5) setOf5(decodedData.of5);
-        if (decodedData.ofi8) setOfi8(decodedData.ofi8);
-        if (decodedData.eat10) setEat10(decodedData.eat10);
-        setAppMode('assistant');
-      } catch (error) {
-        console.error("資料解析失敗", error);
-        alert("資料解析失敗，請確認連結是否完整。");
-      }
-    }
-  }, []);
 
   // --- 檢查表單是否填寫完畢 ---
   const isPatientFormComplete = 
@@ -164,7 +147,7 @@ export default function OralHealthAssessment() {
 
   let finalResult = !isSuspectedFrailty ? '無口腔衰弱' : isHighRisk ? '高風險個案 (疑似口腔衰弱)' : '低風險個案 (疑似口腔衰弱)';
 
-  // --- 邏輯互斥檢查 (主要給助理看) ---
+  // --- 邏輯互斥檢查 ---
   const getLogicConflicts = () => {
     const conflicts = [];
     if (of5['q2'] !== undefined && ofi8[1] !== undefined) {
@@ -201,21 +184,45 @@ export default function OralHealthAssessment() {
     }));
   };
 
-  // --- 產生交接 QR Code / 網址 ---
+  // --- 產生 3 位數交接代碼 ---
   const handleGenerateHandoff = () => {
+    // 產生 100~999 的隨機數字
+    const code = Math.floor(100 + Math.random() * 900).toString();
     const dataToPass = { patientInfo, of5, ofi8, eat10 };
-    const encodedData = btoa(encodeURIComponent(JSON.stringify(dataToPass)));
-    const baseUrl = window.location.origin + window.location.pathname;
-    const url = `${baseUrl}?data=${encodedData}`;
-    setHandoffUrl(url);
+    
+    // 暫存到瀏覽器的 LocalStorage 中 (模擬資料庫)
+    localStorage.setItem(`oral_assessment_${code}`, JSON.stringify(dataToPass));
+    
+    setHandoffCode(code);
     setAppMode('handoff');
     window.scrollTo(0, 0);
   };
 
-  // --- 複製網址 ---
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(handoffUrl);
-    alert('交接連結已複製！可透過 Line 傳送給助理。');
+  // --- 助理輸入代碼載入資料 ---
+  const handleAssistantLogin = () => {
+    if (inputCode.length !== 3) {
+      setLoginError('請輸入完整的3位數代碼');
+      return;
+    }
+    
+    const savedData = localStorage.getItem(`oral_assessment_${inputCode}`);
+    if (savedData) {
+      try {
+        const decodedData = JSON.parse(savedData);
+        if (decodedData.patientInfo) setPatientInfo(decodedData.patientInfo);
+        if (decodedData.of5) setOf5(decodedData.of5);
+        if (decodedData.ofi8) setOfi8(decodedData.ofi8);
+        if (decodedData.eat10) setEat10(decodedData.eat10);
+        
+        setAppMode('assistant');
+        setLoginError('');
+        window.scrollTo(0, 0);
+      } catch (error) {
+        setLoginError('資料解析失敗，請重新輸入');
+      }
+    } else {
+      setLoginError('找不到此代碼的資料，請確認代碼是否正確');
+    }
   };
 
   // --- 儲存資料 (助理端送出) ---
@@ -250,6 +257,8 @@ export default function OralHealthAssessment() {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
+      // 清除暫存
+      if (inputCode) localStorage.removeItem(`oral_assessment_${inputCode}`);
       setAppMode('summary');
       window.scrollTo(0, 0);
     } catch (error) {
@@ -264,7 +273,86 @@ export default function OralHealthAssessment() {
 
   // ================= 畫面渲染 =================
 
-  // 4. 總結畫面
+  // 0. 首頁 (選擇身分)
+  if (appMode === 'home') {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-8 text-center">
+          <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ClipboardList className="w-10 h-10 text-blue-700" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">預防口腔衰弱評估系統</h1>
+          <p className="text-gray-500 mb-8">請選擇您的身分以開始操作</p>
+          
+          <div className="space-y-4">
+            <button onClick={() => setAppMode('patient')} className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center hover:bg-blue-700 transition-colors shadow-sm">
+              <User className="w-6 h-6 mr-3" /> 我是民眾 (開始填寫)
+            </button>
+            <button onClick={() => setAppMode('assistant_login')} className="w-full py-4 bg-white border-2 border-blue-600 text-blue-700 font-bold rounded-xl flex items-center justify-center hover:bg-blue-50 transition-colors">
+              <Stethoscope className="w-6 h-6 mr-3" /> 診所助理 (輸入代碼接手)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 1. 助理登入畫面 (輸入代碼)
+  if (appMode === 'assistant_login') {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-8 text-center">
+          <button onClick={() => setAppMode('home')} className="absolute top-4 left-4 p-2 text-gray-500 hover:bg-gray-100 rounded-full">
+            <Home className="w-6 h-6" />
+          </button>
+          
+          <KeyRound className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">助理接手評估</h2>
+          <p className="text-gray-600 mb-6">請輸入民眾手機畫面上顯示的 3 位數代碼</p>
+          
+          <div className="mb-6">
+            <input 
+              type="text" 
+              maxLength={3}
+              value={inputCode}
+              onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ''))}
+              className="w-48 text-center text-4xl font-bold tracking-widest p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+              placeholder="---"
+            />
+            {loginError && <p className="text-red-500 text-sm mt-2 font-medium">{loginError}</p>}
+          </div>
+
+          <button onClick={handleAssistantLogin} className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center hover:bg-blue-700 transition-colors">
+            載入資料 <ArrowRight className="w-5 h-5 ml-2" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. 交接畫面 (顯示 3 位數代碼給民眾)
+  if (appMode === 'handoff') {
+    return (
+      <div className="min-h-screen bg-gray-100 py-10 px-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-8 text-center">
+          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">第一階段填寫完成！</h2>
+          <p className="text-gray-600 mb-6">請將下方代碼告訴診所助理，以便進行後續專業評估。</p>
+          
+          <div className="bg-blue-50 py-8 px-4 border-2 border-dashed border-blue-300 rounded-xl mb-8">
+            <span className="block text-sm text-blue-600 font-bold mb-2">您的專屬交接代碼</span>
+            <span className="text-6xl font-black text-blue-800 tracking-widest">{handoffCode}</span>
+          </div>
+
+          <button onClick={() => setAppMode('patient')} className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">
+            返回修改資料
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. 總結畫面
   if (appMode === 'summary') {
     return (
       <div className="min-h-screen bg-gray-50 py-10 px-4 flex flex-col items-center">
@@ -315,8 +403,8 @@ export default function OralHealthAssessment() {
                 {ohatItemsWith2.length > 0 ? ohatItemsWith2.join('、') : '無'}
               </span>
             </div>
-            <button onClick={() => window.location.href = window.location.pathname} className="w-full mt-8 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors">
-              返回建立新評估
+            <button onClick={() => window.location.reload()} className="w-full mt-8 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors">
+              返回首頁
             </button>
           </div>
         </div>
@@ -324,43 +412,15 @@ export default function OralHealthAssessment() {
     );
   }
 
-  // 2. 交接畫面 (顯示 QR Code 給助理掃描)
-  if (appMode === 'handoff') {
-    return (
-      <div className="min-h-screen bg-gray-100 py-10 px-4 flex flex-col items-center justify-center">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-8 text-center">
-          <QrCode className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">民眾填寫完成</h2>
-          <p className="text-gray-600 mb-6">請將此畫面交給診所助理，或由助理掃描下方條碼繼續後續評估。</p>
-          
-          <div className="bg-white p-4 border-2 border-dashed border-gray-300 rounded-xl inline-block mb-6">
-            <img 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(handoffUrl)}`} 
-              alt="Handoff QR Code" 
-              className="w-48 h-48 mx-auto"
-            />
-          </div>
-
-          <div className="space-y-3">
-            <button onClick={handleCopyUrl} className="w-full py-3 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center hover:bg-blue-100 transition-colors">
-              <Copy className="w-5 h-5 mr-2" /> 複製交接連結
-            </button>
-            <button onClick={() => setAppMode('patient')} className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">
-              返回修改資料
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 1 & 3. 填寫畫面 (民眾模式 / 助理模式)
+  // 4. 填寫畫面 (民眾模式 / 助理模式)
   return (
     <div className="min-h-screen bg-gray-100 pb-28">
       <div className="bg-blue-900 shadow-md sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <ClipboardList className="w-6 h-6 text-white mr-3" />
+            <button onClick={() => setAppMode('home')} className="mr-3 p-1 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors">
+              <Home className="w-5 h-5" />
+            </button>
             <h1 className="text-xl font-bold text-white">預防口腔衰弱評估</h1>
           </div>
           <div className="bg-white/20 px-3 py-1 rounded-full text-white text-sm font-medium flex items-center">
@@ -709,7 +769,7 @@ export default function OralHealthAssessment() {
                   isPatientFormComplete ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'
                 }`}
               >
-                <QrCode className="w-5 h-5 mr-2" /> 完成並產生交接條碼
+                <KeyRound className="w-5 h-5 mr-2" /> 產生 3 位數交接代碼
               </button>
             </>
           )}
