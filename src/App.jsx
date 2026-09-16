@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ClipboardList, CheckCircle2, AlertCircle, Loader2, User, Stethoscope, KeyRound, ArrowRight, BookOpen, AlertTriangle, Home } from 'lucide-react';
 
 // --- 資料定義 ---
@@ -49,8 +49,8 @@ const LOWER_TEETH = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37,
 
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwpGSXCqXhbVhpTrWB84LkFBjCBGVFspDfzY4P2TLNx5KAq9stPXhvhB2sqoFqvYlI4/exec';
 
-const Card = ({ title, children, score, alertCondition, alertText, icon: Icon }) => (
-  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+const Card = ({ id, title, children, score, alertCondition, alertText, icon: Icon }) => (
+  <div id={id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
     <div className="bg-blue-800 px-4 py-3 flex justify-between items-center">
       <div className="flex items-center">
         {Icon && <Icon className="w-5 h-5 text-white mr-2" />}
@@ -148,7 +148,7 @@ export default function OralHealthAssessment() {
 
   let finalResult = !isSuspectedFrailty ? '無口腔衰弱' : isHighRisk ? '高風險個案 (疑似口腔衰弱)' : '低風險個案 (疑似口腔衰弱)';
 
-  // --- 邏輯互斥檢查 (加入 targetId 以便跳轉) ---
+  // --- 邏輯互斥檢查 ---
   const getLogicConflicts = () => {
     const conflicts = [];
     if (of5['q2'] !== undefined && ofi8[1] !== undefined) {
@@ -170,19 +170,48 @@ export default function OralHealthAssessment() {
   };
   const logicConflicts = getLogicConflicts();
   const hasConflicts = logicConflicts.length > 0;
+  const prevConflictCountRef = useRef(0);
 
-  // 平滑捲動至衝突點
-  const scrollToConflict = (targetId) => {
+  // 平滑捲動至指定元素 (支援題目高亮或區塊高亮)
+  const scrollToElement = (targetId, isCard = false) => {
     const el = document.getElementById(targetId);
     if (el) {
       const yOffset = -100; 
       const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
       
-      el.classList.add('bg-yellow-100', 'transition-colors', 'duration-500', 'rounded-lg', 'p-2');
-      setTimeout(() => el.classList.remove('bg-yellow-100', 'p-2'), 2000);
+      if (isCard) {
+        el.classList.add('ring-4', 'ring-green-400', 'transition-all', 'duration-1000');
+        setTimeout(() => el.classList.remove('ring-4', 'ring-green-400'), 2000);
+      } else {
+        el.classList.add('bg-yellow-100', 'transition-colors', 'duration-500', 'rounded-lg', 'p-2');
+        setTimeout(() => el.classList.remove('bg-yellow-100', 'p-2'), 2000);
+      }
     }
   };
+
+  // 1. 助理登入時，若有衝突自動滑動到第一個衝突點
+  useEffect(() => {
+    if (appMode === 'assistant' && logicConflicts.length > 0) {
+      setTimeout(() => {
+        scrollToElement(logicConflicts[0].targetId);
+      }, 500);
+    }
+  }, [appMode]); // 僅在 appMode 改變時觸發
+
+  // 2. 監聽衝突數量，當衝突解決(變為0)時，自動滑動到 TCI 區塊
+  useEffect(() => {
+    if (appMode === 'assistant') {
+      const currentCount = logicConflicts.length;
+      if (prevConflictCountRef.current > 0 && currentCount === 0) {
+        // 衝突剛被完全解決，延遲一下讓畫面更新後滑動
+        setTimeout(() => {
+          scrollToElement('tci-section', true);
+        }, 300);
+      }
+      prevConflictCountRef.current = currentCount;
+    }
+  }, [logicConflicts.length, appMode]);
 
   const handleDiseaseToggle = (disease) => {
     setOralScreening(prev => {
@@ -251,7 +280,7 @@ export default function OralHealthAssessment() {
         if (decodedData.eat10) setEat10(decodedData.eat10);
         
         setAppMode('assistant');
-        window.scrollTo(0, 0);
+        // 這裡不加上 window.scrollTo(0, 0)，交給 useEffect 去判斷是否要滑動到衝突點
       } else {
         setLoginError(result.message || '找不到此代碼的資料，請確認代碼是否正確');
       }
@@ -503,7 +532,33 @@ export default function OralHealthAssessment() {
           </div>
         </Card>
 
-        {/* 助理模式下解除 disabled，允許助理修正 */}
+        {/* 邏輯互斥警告區塊 (移至上方，讓助理一進來就看到) */}
+        {appMode === 'assistant' && hasConflicts && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm animate-pulse mb-6">
+            <div className="flex items-start">
+              <AlertTriangle className="w-6 h-6 text-red-500 mr-3 shrink-0" />
+              <div className="w-full">
+                <h3 className="text-red-800 font-bold mb-2">民眾填寫邏輯衝突提醒</h3>
+                <p className="text-sm text-red-600 mb-3">請點擊下方項目，向民眾確認並修正答案後，才能解鎖後續評估。</p>
+                <ul className="space-y-2">
+                  {logicConflicts.map((conflict, idx) => (
+                    <li key={idx}>
+                      <button 
+                        onClick={() => scrollToElement(conflict.targetId)}
+                        className="flex items-center text-left w-full text-red-700 hover:bg-red-100 p-2 rounded-md transition-colors"
+                      >
+                        <span className="mr-2">•</span>
+                        <span className="underline decoration-red-300 underline-offset-2">{conflict.msg}</span>
+                        <span className="ml-auto text-xs bg-red-200 text-red-800 px-2 py-1 rounded-full">點此修正</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Card title="口腔衰弱五項量表 (OF-5)" score={calculateOF5()} alertCondition={calculateOF5() >= 2} alertText="異常 (≥2項為是)">
           <div className="space-y-4">
             {OF5_QUESTIONS.map((q) => (
@@ -568,33 +623,6 @@ export default function OralHealthAssessment() {
               <Stethoscope className="w-5 h-5 mr-2" /> 以下由專業人員填寫
             </div>
 
-            {/* 邏輯互斥警告區塊 (可點擊跳轉) */}
-            {hasConflicts && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm animate-pulse">
-                <div className="flex items-start">
-                  <AlertTriangle className="w-6 h-6 text-red-500 mr-3 shrink-0" />
-                  <div className="w-full">
-                    <h3 className="text-red-800 font-bold mb-2">民眾填寫邏輯衝突提醒</h3>
-                    <p className="text-sm text-red-600 mb-3">請點擊下方項目，向民眾確認並修正答案後，才能解鎖後續評估。</p>
-                    <ul className="space-y-2">
-                      {logicConflicts.map((conflict, idx) => (
-                        <li key={idx}>
-                          <button 
-                            onClick={() => scrollToConflict(conflict.targetId)}
-                            className="flex items-center text-left w-full text-red-700 hover:bg-red-100 p-2 rounded-md transition-colors"
-                          >
-                            <span className="mr-2">•</span>
-                            <span className="underline decoration-red-300 underline-offset-2">{conflict.msg}</span>
-                            <span className="ml-auto text-xs bg-red-200 text-red-800 px-2 py-1 rounded-full">點此修正</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* 專業評估區塊 (若有衝突則鎖定) */}
             <div className={`space-y-6 transition-opacity duration-300 ${hasConflicts ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
               
@@ -615,7 +643,7 @@ export default function OralHealthAssessment() {
               </div>
 
               {/* 5. TCI */}
-              <Card title="舌苔指數 (TCI)" score={`${tciScore}%`} alertCondition={tciScore >= 50} alertText="異常 (≥50%)">
+              <Card id="tci-section" title="舌苔指數 (TCI)" score={`${tciScore}%`} alertCondition={tciScore >= 50} alertText="異常 (≥50%)">
                 <p className="text-xs text-gray-500 mb-4 text-center">將舌頭區分為九宮格。0: 無舌苔, 1: 薄舌苔, 2: 厚舌苔</p>
                 <div className="flex justify-center my-4">
                   <div className="grid grid-cols-3 gap-2 w-full max-w-xs aspect-square">
@@ -745,7 +773,7 @@ export default function OralHealthAssessment() {
                         <option value="">選擇假牙類型</option><option value="無">無</option><option value="局部活動">局部活動假牙</option><option value="全口活動">全口活動假牙</option><option value="局部固定">局部固定假牙</option><option value="全口固定">全口固定假牙</option>
                       </select>
                       <div className="flex space-x-4">
-                        {['經常', '偶遇', '其它'].map(opt => (
+                        {['經常', '偶爾', '其它'].map(opt => (
                           <label key={`up-${opt}`} className="flex items-center text-sm cursor-pointer">
                             <input type="radio" name="upperDentureUsage" value={opt} checked={oralScreening.upperDentureUsage === opt} onChange={(e) => setOralScreening({...oralScreening, upperDentureUsage: e.target.value})} className="mr-1 text-blue-600" /> 
                             <span className={oralScreening.upperDentureUsage === opt ? 'text-blue-700 font-bold' : 'text-gray-700'}>{opt}</span>
