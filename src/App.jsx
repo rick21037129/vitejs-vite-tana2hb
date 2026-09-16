@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown, ArrowRight, BookOpen, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ClipboardList, CheckCircle2, AlertCircle, Loader2, ChevronDown, ArrowRight, BookOpen, AlertTriangle, QrCode, Copy, User, Stethoscope } from 'lucide-react';
 
 // --- 資料定義 ---
 const REGIONS = [
@@ -47,10 +47,13 @@ const OHAT_CATEGORIES = [
 const UPPER_TEETH = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
 const LOWER_TEETH = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
 
-const Card = ({ title, children, score, alertCondition, alertText }) => (
+const Card = ({ title, children, score, alertCondition, alertText, icon: Icon }) => (
   <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
     <div className="bg-blue-800 px-4 py-3 flex justify-between items-center">
-      <h2 className="text-lg font-bold text-white">{title}</h2>
+      <div className="flex items-center">
+        {Icon && <Icon className="w-5 h-5 text-white mr-2" />}
+        <h2 className="text-lg font-bold text-white">{title}</h2>
+      </div>
       {score !== undefined && (
         <div className="bg-white/20 px-3 py-1 rounded-full text-white text-sm font-medium">
           總分: {score}
@@ -69,7 +72,6 @@ const Card = ({ title, children, score, alertCondition, alertText }) => (
   </div>
 );
 
-// 姓名遮蔽處理函數 (葉梓賢 -> 葉Ｏ賢)
 const maskName = (name) => {
   if (!name) return '';
   if (name.length === 1) return name;
@@ -79,6 +81,10 @@ const maskName = (name) => {
 
 export default function OralHealthAssessment() {
   // --- 狀態管理 ---
+  // appMode: 'patient' (民眾填寫), 'handoff' (顯示QR Code), 'assistant' (助理填寫), 'summary' (完成)
+  const [appMode, setAppMode] = useState('patient'); 
+  const [handoffUrl, setHandoffUrl] = useState('');
+
   const [patientInfo, setPatientInfo] = useState({ 
     name: '', id: '', date: '', region: '', 
     birthDate: '', identityType: '', 
@@ -100,19 +106,36 @@ export default function OralHealthAssessment() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
+
+  // --- 解析網址參數 (助理掃描 QR Code 後載入資料) ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dataParam = params.get('data');
+    if (dataParam) {
+      try {
+        const decodedData = JSON.parse(decodeURIComponent(atob(dataParam)));
+        if (decodedData.patientInfo) setPatientInfo(decodedData.patientInfo);
+        if (decodedData.of5) setOf5(decodedData.of5);
+        if (decodedData.ofi8) setOfi8(decodedData.ofi8);
+        if (decodedData.eat10) setEat10(decodedData.eat10);
+        setAppMode('assistant');
+      } catch (error) {
+        console.error("資料解析失敗", error);
+        alert("資料解析失敗，請確認連結是否完整。");
+      }
+    }
+  }, []);
 
   // --- 檢查表單是否填寫完畢 ---
-  const isFormComplete = 
-    patientInfo.name !== '' && 
-    patientInfo.id !== '' && 
-    patientInfo.region !== '' && 
-    patientInfo.date !== '' &&
-    patientInfo.birthDate !== '' &&
-    patientInfo.identityType !== '' &&
+  const isPatientFormComplete = 
+    patientInfo.name !== '' && patientInfo.id !== '' && 
+    patientInfo.region !== '' && patientInfo.date !== '' &&
+    patientInfo.birthDate !== '' && patientInfo.identityType !== '' &&
     Object.keys(of5).length === 5 &&
     Object.keys(ofi8).length === 8 &&
-    Object.keys(eat10).length === 10 &&
+    Object.keys(eat10).length === 10;
+
+  const isAssistantFormComplete = 
     Object.keys(ohat).length === 8 &&
     oralScreening.dietMethod !== '' &&
     oralScreening.foodType !== '' &&
@@ -141,22 +164,19 @@ export default function OralHealthAssessment() {
 
   let finalResult = !isSuspectedFrailty ? '無口腔衰弱' : isHighRisk ? '高風險個案 (疑似口腔衰弱)' : '低風險個案 (疑似口腔衰弱)';
 
-  // --- 邏輯互斥檢查 ---
+  // --- 邏輯互斥檢查 (主要給助理看) ---
   const getLogicConflicts = () => {
     const conflicts = [];
-    // OF-5 第2項 vs OFI-8 第1項 (吃硬的食物)
     if (of5['q2'] !== undefined && ofi8[1] !== undefined) {
       if ((of5['q2'] === 1 && ofi8[1] === 'no') || (of5['q2'] === 0 && ofi8[1] === 'yes')) {
         conflicts.push('「吃硬的食物有困難」在 OF-5 與 OFI-8 填寫結果不一致');
       }
     }
-    // OF-5 第3項 vs OFI-8 第2項 (嗆到)
     if (of5['q3'] !== undefined && ofi8[2] !== undefined) {
       if ((of5['q3'] === 1 && ofi8[2] === 'no') || (of5['q3'] === 0 && ofi8[2] === 'yes')) {
         conflicts.push('「被茶或湯嗆到」在 OF-5 與 OFI-8 填寫結果不一致');
       }
     }
-    // OF-5 第4項 vs OFI-8 第4項 (口乾)
     if (of5['q4'] !== undefined && ofi8[4] !== undefined) {
       if ((of5['q4'] === 1 && ofi8[4] === 'no') || (of5['q4'] === 0 && ofi8[4] === 'yes')) {
         conflicts.push('「經常口乾舌燥」在 OF-5 與 OFI-8 填寫結果不一致');
@@ -164,7 +184,6 @@ export default function OralHealthAssessment() {
     }
     return conflicts;
   };
-
   const logicConflicts = getLogicConflicts();
 
   const handleDiseaseToggle = (disease) => {
@@ -178,14 +197,30 @@ export default function OralHealthAssessment() {
 
   const handleDentalStatusChange = (tooth, status) => {
     setOralScreening(prev => ({
-      ...prev,
-      dentalStatus: { ...prev.dentalStatus, [tooth]: status }
+      ...prev, dentalStatus: { ...prev.dentalStatus, [tooth]: status }
     }));
   };
 
-  // --- 儲存資料 ---
+  // --- 產生交接 QR Code / 網址 ---
+  const handleGenerateHandoff = () => {
+    const dataToPass = { patientInfo, of5, ofi8, eat10 };
+    const encodedData = btoa(encodeURIComponent(JSON.stringify(dataToPass)));
+    const baseUrl = window.location.origin + window.location.pathname;
+    const url = `${baseUrl}?data=${encodedData}`;
+    setHandoffUrl(url);
+    setAppMode('handoff');
+    window.scrollTo(0, 0);
+  };
+
+  // --- 複製網址 ---
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(handoffUrl);
+    alert('交接連結已複製！可透過 Line 傳送給助理。');
+  };
+
+  // --- 儲存資料 (助理端送出) ---
   const handleSave = async () => {
-    if (!isFormComplete) return;
+    if (!isAssistantFormComplete) return;
     setIsSubmitting(true);
 
     const payload = {
@@ -207,7 +242,6 @@ export default function OralHealthAssessment() {
       rawDetails: JSON.stringify(oralScreening)
     };
 
-    // ⚠️ 請將此 URL 替換為您新的 Google Apps Script 部署網址
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwpGSXCqXhbVhpTrWB84LkFBjCBGVFspDfzY4P2TLNx5KAq9stPXhvhB2sqoFqvYlI4/exec';
 
     try {
@@ -216,19 +250,22 @@ export default function OralHealthAssessment() {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
-      setShowSummary(true);
+      setAppMode('summary');
       window.scrollTo(0, 0);
     } catch (error) {
       console.error('Error:', error);
       alert('請求已送出！請檢查 Google 試算表是否有新增資料。');
-      setShowSummary(true);
+      setAppMode('summary');
       window.scrollTo(0, 0);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (showSummary) {
+  // ================= 畫面渲染 =================
+
+  // 4. 總結畫面
+  if (appMode === 'summary') {
     return (
       <div className="min-h-screen bg-gray-50 py-10 px-4 flex flex-col items-center">
         <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
@@ -237,10 +274,8 @@ export default function OralHealthAssessment() {
             <h1 className="text-3xl font-bold text-white mb-2">評估已完成</h1>
             <p className="text-white/90 text-lg">{finalResult}</p>
           </div>
-          
           <div className="p-6 md:p-8 space-y-6">
             <h2 className="text-xl font-bold text-gray-800 border-b pb-2">評估紀錄總結</h2>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <span className="block text-sm text-gray-500 mb-1">地區</span>
@@ -250,18 +285,7 @@ export default function OralHealthAssessment() {
                 <span className="block text-sm text-gray-500 mb-1">姓名</span>
                 <span className="font-bold text-gray-800">{maskName(patientInfo.name)}</span>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <span className="block text-sm text-gray-500 mb-1">評估日期</span>
-                <span className="font-bold text-gray-800">{patientInfo.date}</span>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <span className="block text-sm text-gray-500 mb-1">評估結果</span>
-                <span className={`font-bold ${!isSuspectedFrailty ? 'text-green-600' : isHighRisk ? 'text-red-600' : 'text-yellow-600'}`}>
-                  {finalResult}
-                </span>
-              </div>
             </div>
-
             <h3 className="text-lg font-bold text-gray-800 mt-6 border-b pb-2">各項分數</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
@@ -285,15 +309,13 @@ export default function OralHealthAssessment() {
                 <span className="text-2xl font-bold text-blue-900">{ohatScore}</span>
               </div>
             </div>
-
             <div className="bg-red-50 p-4 rounded-lg border border-red-100">
               <span className="block text-sm text-red-800 mb-1 font-bold">OHAT 達 2 分之項目</span>
               <span className="text-red-900 font-medium">
                 {ohatItemsWith2.length > 0 ? ohatItemsWith2.join('、') : '無'}
               </span>
             </div>
-
-            <button onClick={() => window.location.reload()} className="w-full mt-8 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors">
+            <button onClick={() => window.location.href = window.location.pathname} className="w-full mt-8 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors">
               返回建立新評估
             </button>
           </div>
@@ -302,100 +324,94 @@ export default function OralHealthAssessment() {
     );
   }
 
+  // 2. 交接畫面 (顯示 QR Code 給助理掃描)
+  if (appMode === 'handoff') {
+    return (
+      <div className="min-h-screen bg-gray-100 py-10 px-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-8 text-center">
+          <QrCode className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">民眾填寫完成</h2>
+          <p className="text-gray-600 mb-6">請將此畫面交給診所助理，或由助理掃描下方條碼繼續後續評估。</p>
+          
+          <div className="bg-white p-4 border-2 border-dashed border-gray-300 rounded-xl inline-block mb-6">
+            <img 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(handoffUrl)}`} 
+              alt="Handoff QR Code" 
+              className="w-48 h-48 mx-auto"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <button onClick={handleCopyUrl} className="w-full py-3 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center hover:bg-blue-100 transition-colors">
+              <Copy className="w-5 h-5 mr-2" /> 複製交接連結
+            </button>
+            <button onClick={() => setAppMode('patient')} className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">
+              返回修改資料
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 1 & 3. 填寫畫面 (民眾模式 / 助理模式)
   return (
     <div className="min-h-screen bg-gray-100 pb-28">
       <div className="bg-blue-900 shadow-md sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center">
-          <ClipboardList className="w-6 h-6 text-white mr-3" />
-          <h1 className="text-xl font-bold text-white">預防口腔衰弱評估</h1>
+        <div className="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center">
+            <ClipboardList className="w-6 h-6 text-white mr-3" />
+            <h1 className="text-xl font-bold text-white">預防口腔衰弱評估</h1>
+          </div>
+          <div className="bg-white/20 px-3 py-1 rounded-full text-white text-sm font-medium flex items-center">
+            {appMode === 'patient' ? <><User className="w-4 h-4 mr-1"/> 民眾自填</> : <><Stethoscope className="w-4 h-4 mr-1"/> 專業評估</>}
+          </div>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         
-        {/* 1. 基本資料 */}
-        <Card title="基本資料">
+        {/* --- 第一部分：民眾自填區塊 --- */}
+        <Card title="基本資料" icon={User}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">評估單位 (固定)</label>
-              <input 
-                type="text" 
-                value={patientInfo.assessmentUnit}
-                readOnly
-                className="block w-full rounded-lg border-gray-300 bg-gray-200 text-gray-600 border p-3 cursor-not-allowed" 
-              />
+              <input type="text" value={patientInfo.assessmentUnit} readOnly className="block w-full rounded-lg border-gray-300 bg-gray-200 text-gray-600 border p-3 cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">評估日期</label>
-              <input 
-                type="date" 
-                value={patientInfo.date}
-                onChange={(e) => setPatientInfo({...patientInfo, date: e.target.value})}
-                className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 focus:ring-2 focus:ring-blue-500" 
-              />
+              <input type="date" value={patientInfo.date} disabled={appMode === 'assistant'} onChange={(e) => setPatientInfo({...patientInfo, date: e.target.value})} className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 focus:ring-2 focus:ring-blue-500 disabled:opacity-70" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">地區</label>
-              <div className="relative">
-                <select 
-                  value={patientInfo.region}
-                  onChange={(e) => setPatientInfo({...patientInfo, region: e.target.value})}
-                  className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 appearance-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">請選擇地區</option>
-                  {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none" />
-              </div>
+              <select value={patientInfo.region} disabled={appMode === 'assistant'} onChange={(e) => setPatientInfo({...patientInfo, region: e.target.value})} className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 disabled:opacity-70">
+                <option value="">請選擇地區</option>
+                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-              <input 
-                type="text" 
-                value={patientInfo.name}
-                onChange={(e) => setPatientInfo({...patientInfo, name: e.target.value})}
-                className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 focus:ring-2 focus:ring-blue-500" 
-                placeholder="輸入姓名" 
-              />
+              <input type="text" value={patientInfo.name} disabled={appMode === 'assistant'} onChange={(e) => setPatientInfo({...patientInfo, name: e.target.value})} className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 disabled:opacity-70" placeholder="輸入姓名" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">身分證字號</label>
-              <input 
-                type="text" 
-                value={patientInfo.id}
-                onChange={(e) => setPatientInfo({...patientInfo, id: e.target.value})}
-                className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 focus:ring-2 focus:ring-blue-500" 
-                placeholder="輸入身分證" 
-              />
+              <input type="text" value={patientInfo.id} disabled={appMode === 'assistant'} onChange={(e) => setPatientInfo({...patientInfo, id: e.target.value})} className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 disabled:opacity-70" placeholder="輸入身分證" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">出生日期</label>
-              <input 
-                type="date" 
-                value={patientInfo.birthDate}
-                onChange={(e) => setPatientInfo({...patientInfo, birthDate: e.target.value})}
-                className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 focus:ring-2 focus:ring-blue-500" 
-              />
+              <input type="date" value={patientInfo.birthDate} disabled={appMode === 'assistant'} onChange={(e) => setPatientInfo({...patientInfo, birthDate: e.target.value})} className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 disabled:opacity-70" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">身分別</label>
-              <div className="relative">
-                <select 
-                  value={patientInfo.identityType}
-                  onChange={(e) => setPatientInfo({...patientInfo, identityType: e.target.value})}
-                  className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 appearance-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">請選擇身分別</option>
-                  <option value="符合健保法免部分負擔">符合健保法免部分負擔</option>
-                  <option value="一般個案">一般個案</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none" />
-              </div>
+              <select value={patientInfo.identityType} disabled={appMode === 'assistant'} onChange={(e) => setPatientInfo({...patientInfo, identityType: e.target.value})} className="block w-full rounded-lg border-gray-300 bg-gray-50 border p-3 disabled:opacity-70">
+                <option value="">請選擇身分別</option>
+                <option value="符合健保法免部分負擔">符合健保法免部分負擔</option>
+                <option value="一般個案">一般個案</option>
+              </select>
             </div>
           </div>
         </Card>
 
-        {/* 2. OF-5 */}
         <Card title="口腔衰弱五項量表 (OF-5)" score={calculateOF5()} alertCondition={calculateOF5() >= 2} alertText="異常 (≥2項為是)">
           <div className="space-y-4">
             {OF5_QUESTIONS.map((q) => (
@@ -403,8 +419,8 @@ export default function OralHealthAssessment() {
                 <span className="text-sm text-gray-800 mb-3 font-medium">{q.text}</span>
                 <div className="flex space-x-4">
                   {q.opts.map(opt => (
-                    <label key={opt.label} className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${of5[q.id] === opt.val ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
-                      <input type="radio" name={`of5-${q.id}`} value={opt.val} checked={of5[q.id] === opt.val} onChange={() => setOf5({...of5, [q.id]: opt.val})} className="w-4 h-4 text-blue-600" />
+                    <label key={opt.label} className={`flex items-center space-x-2 px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${appMode === 'assistant' ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:bg-blue-50'} ${of5[q.id] === opt.val ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                      <input type="radio" disabled={appMode === 'assistant'} name={`of5-${q.id}`} value={opt.val} checked={of5[q.id] === opt.val} onChange={() => setOf5({...of5, [q.id]: opt.val})} className="w-4 h-4 text-blue-600" />
                       <span className="text-sm font-medium">{opt.label}</span>
                     </label>
                   ))}
@@ -414,19 +430,18 @@ export default function OralHealthAssessment() {
           </div>
         </Card>
 
-        {/* 3. OFI-8 */}
         <Card title="口腔衰弱指數8 (OFI-8)" score={calculateOFI8()} alertCondition={calculateOFI8() >= 4} alertText="異常 (≥4分)">
           <div className="space-y-4">
             {OFI8_QUESTIONS.map((q) => (
                <div key={q.id} className="flex flex-col pb-4 border-b border-gray-100 last:border-0">
                  <span className="text-sm text-gray-800 mb-3 font-medium">{q.id}. {q.text}</span>
                  <div className="flex space-x-6">
-                   <label className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${ofi8[q.id] === 'yes' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
-                     <input type="radio" name={`ofi8-${q.id}`} value="yes" checked={ofi8[q.id] === 'yes'} onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-4 h-4 text-blue-600" />
+                   <label className={`flex items-center space-x-2 px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${appMode === 'assistant' ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:bg-blue-50'} ${ofi8[q.id] === 'yes' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                     <input type="radio" disabled={appMode === 'assistant'} name={`ofi8-${q.id}`} value="yes" checked={ofi8[q.id] === 'yes'} onChange={() => setOfi8({...ofi8, [q.id]: 'yes'})} className="w-4 h-4 text-blue-600" />
                      <span className="text-sm font-medium">是</span>
                    </label>
-                   <label className={`flex items-center space-x-2 cursor-pointer px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${ofi8[q.id] === 'no' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-blue-50'}`}>
-                     <input type="radio" name={`ofi8-${q.id}`} value="no" checked={ofi8[q.id] === 'no'} onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-4 h-4 text-blue-600" />
+                   <label className={`flex items-center space-x-2 px-4 py-2 rounded-lg flex-1 justify-center border transition-colors ${appMode === 'assistant' ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:bg-blue-50'} ${ofi8[q.id] === 'no' ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                     <input type="radio" disabled={appMode === 'assistant'} name={`ofi8-${q.id}`} value="no" checked={ofi8[q.id] === 'no'} onChange={() => setOfi8({...ofi8, [q.id]: 'no'})} className="w-4 h-4 text-blue-600" />
                      <span className="text-sm font-medium">否</span>
                    </label>
                  </div>
@@ -435,35 +450,6 @@ export default function OralHealthAssessment() {
           </div>
         </Card>
 
-        {/* 邏輯互斥警告區塊 */}
-        {logicConflicts.length > 0 && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm">
-            <div className="flex items-start">
-              <AlertTriangle className="w-6 h-6 text-red-500 mr-3 shrink-0" />
-              <div>
-                <h3 className="text-red-800 font-bold mb-1">填寫邏輯衝突提醒</h3>
-                <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
-                  {logicConflicts.map((msg, idx) => (
-                    <li key={idx}>{msg}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 初步評估結論區塊 */}
-        <div className={`p-4 rounded-xl border-2 flex items-center justify-between ${isSuspectedFrailty ? 'bg-yellow-50 border-yellow-400' : 'bg-green-50 border-green-400'}`}>
-          <div>
-            <h3 className={`text-lg font-bold ${isSuspectedFrailty ? 'text-yellow-800' : 'text-green-800'}`}>初步評估結論</h3>
-            <p className={`text-sm mt-1 ${isSuspectedFrailty ? 'text-yellow-700' : 'text-green-700'}`}>
-              {isSuspectedFrailty ? 'OF-5 ≥ 2 或 OFI-8 ≥ 4，判定為「疑似口腔衰弱」。請繼續完成下方評估以確認風險等級。' : '目前指標正常，無明顯口腔衰弱跡象。仍可繼續完成下方評估。'}
-            </p>
-          </div>
-          <ArrowRight className={`w-8 h-8 hidden sm:block ${isSuspectedFrailty ? 'text-yellow-500' : 'text-green-500'}`} />
-        </div>
-
-        {/* 4. EAT-10 */}
         <Card title="吞嚥困難篩選 (EAT-10)" score={eat10Score} alertCondition={eat10Score >= 3} alertText="異常 (≥3分)">
           <p className="text-xs text-gray-500 mb-4">0 = 沒有問題, 4 = 問題很嚴重</p>
           <div className="space-y-5">
@@ -472,8 +458,8 @@ export default function OralHealthAssessment() {
                 <span className="text-sm text-gray-800 mb-3 font-medium">{idx + 1}. {q}</span>
                 <div className="flex justify-between bg-gray-50 p-2 rounded-lg border border-gray-200">
                   {[0, 1, 2, 3, 4].map(score => (
-                    <label key={score} className={`flex flex-col items-center cursor-pointer p-2 rounded-md flex-1 transition-colors ${eat10[idx] === String(score) ? 'bg-blue-200 shadow-sm' : 'hover:bg-blue-100'}`}>
-                      <input type="radio" name={`eat10-${idx}`} value={score} checked={eat10[idx] === String(score)} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-4 h-4 text-blue-600 mb-1" />
+                    <label key={score} className={`flex flex-col items-center p-2 rounded-md flex-1 transition-colors ${appMode === 'assistant' ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:bg-blue-100'} ${eat10[idx] === String(score) ? 'bg-blue-200 shadow-sm' : ''}`}>
+                      <input type="radio" disabled={appMode === 'assistant'} name={`eat10-${idx}`} value={score} checked={eat10[idx] === String(score)} onChange={(e) => setEat10({...eat10, [idx]: e.target.value})} className="w-4 h-4 text-blue-600 mb-1" />
                       <span className={`text-xs font-medium ${eat10[idx] === String(score) ? 'text-blue-800' : 'text-gray-600'}`}>{score}</span>
                     </label>
                   ))}
@@ -483,218 +469,277 @@ export default function OralHealthAssessment() {
           </div>
         </Card>
 
-        {/* 5. TCI */}
-        <Card title="舌苔指數 (TCI)" score={`${tciScore}%`} alertCondition={tciScore >= 50} alertText="異常 (≥50%)">
-          <p className="text-xs text-gray-500 mb-4 text-center">將舌頭區分為九宮格。0: 無舌苔, 1: 薄舌苔, 2: 厚舌苔</p>
-          <div className="flex justify-center my-4">
-            <div className="grid grid-cols-3 gap-2 w-full max-w-xs aspect-square">
-              {tci.map((val, idx) => (
-                <div key={idx} className="border-2 border-pink-200 rounded-xl flex flex-col items-center justify-center bg-pink-50/50">
-                  <select 
-                    className="block w-16 text-center rounded-lg border-gray-300 bg-white shadow-sm focus:border-pink-500 focus:ring-pink-500 text-lg font-bold p-2"
-                    value={val}
-                    onChange={(e) => {
-                      const newTci = [...tci];
-                      newTci[idx] = parseInt(e.target.value);
-                      setTci(newTci);
-                    }}
-                  >
-                    <option value={0}>0</option>
-                    <option value={1}>1</option>
-                    <option value={2}>2</option>
-                  </select>
-                </div>
-              ))}
+        {/* --- 助理模式才顯示的內容 --- */}
+        {appMode === 'assistant' && (
+          <div className="mt-8 pt-6 border-t-4 border-blue-200 space-y-6">
+            <div className="flex items-center justify-center bg-blue-100 text-blue-800 py-2 rounded-lg font-bold mb-4">
+              <Stethoscope className="w-5 h-5 mr-2" /> 以下由專業人員填寫
             </div>
-          </div>
-        </Card>
 
-        {/* 6. OHAT */}
-        <Card title="口腔健康評估 (OHAT)" score={ohatScore} alertCondition={ohatScore >= 4 || ohatItemsWith2.length > 0} alertText="異常 (總分≥4分 或 單項達2分)">
-          <div className="space-y-6">
-            {OHAT_CATEGORIES.map((cat) => (
-              <div key={cat.id} className="flex flex-col pb-4 border-b border-gray-100 last:border-0">
-                <span className="text-sm text-blue-900 mb-3 font-bold bg-blue-50 inline-block px-3 py-1 rounded-md self-start">{cat.name}</span>
-                <div className="space-y-2">
-                  {cat.opts.map((opt, idx) => (
-                    <label key={idx} className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${ohat[cat.id] === idx ? 'bg-blue-100 border-blue-400' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
-                      <input type="radio" name={`ohat-${cat.id}`} checked={ohat[cat.id] === idx} onChange={() => setOhat({...ohat, [cat.id]: idx})} className="mt-0.5 w-4 h-4 text-blue-600 mr-3 shrink-0" />
-                      <div className="flex flex-col">
-                        <span className={`text-sm font-medium ${ohat[cat.id] === idx ? 'text-blue-900' : 'text-gray-800'}`}>{idx} 分</span>
-                        <span className="text-xs text-gray-500 mt-1">{opt}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* 7. 口篩表 */}
-        <Card title="口篩表">
-          <div className="space-y-6">
-            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-              <div className="flex justify-between items-end mb-2">
-                <label className="block text-sm font-bold text-blue-900">牙齒現況</label>
-                <span className="text-xs text-gray-500">左右滑動填寫</span>
-              </div>
-              <p className="text-xs text-gray-600 mb-3 font-medium">代碼：D=窩洞，M=缺牙，RR=殘根，F=填補</p>
-              <div className="space-y-4">
-                <div>
-                  <span className="text-xs font-bold text-gray-600 block mb-1">上顎 (18-28)</span>
-                  <div className="flex overflow-x-auto pb-2 space-x-1 snap-x">
-                    {UPPER_TEETH.map(t => (
-                      <div key={t} className="flex flex-col items-center min-w-14 snap-start">
-                        <span className="text-xs font-bold text-gray-700">{t}</span>
-                        <select className="mt-1 w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-1 focus:ring-blue-500" value={oralScreening.dentalStatus[t] || ''} onChange={(e) => handleDentalStatusChange(t, e.target.value)}>
-                          <option value="">-</option><option value="D">D</option><option value="M">M</option><option value="RR">RR</option><option value="F">F</option>
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-gray-600 block mb-1">下顎 (48-38)</span>
-                  <div className="flex overflow-x-auto pb-2 space-x-1 snap-x">
-                    {LOWER_TEETH.map(t => (
-                      <div key={t} className="flex flex-col items-center min-w-14 snap-start">
-                        <span className="text-xs font-bold text-gray-700">{t}</span>
-                        <select className="mt-1 w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-1 focus:ring-blue-500" value={oralScreening.dentalStatus[t] || ''} onChange={(e) => handleDentalStatusChange(t, e.target.value)}>
-                          <option value="">-</option><option value="D">D</option><option value="M">M</option><option value="RR">RR</option><option value="F">F</option>
-                        </select>
-                      </div>
-                    ))}
+            {/* 邏輯互斥警告區塊 */}
+            {logicConflicts.length > 0 && (
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm">
+                <div className="flex items-start">
+                  <AlertTriangle className="w-6 h-6 text-red-500 mr-3 shrink-0" />
+                  <div>
+                    <h3 className="text-red-800 font-bold mb-1">民眾填寫邏輯衝突提醒</h3>
+                    <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                      {logicConflicts.map((msg, idx) => <li key={idx}>{msg}</li>)}
+                    </ul>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">飲食方式</label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {['經口', '鼻胃管', '胃造口', '其它'].map(opt => (
-                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.dietMethod === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
-                    <input type="radio" name="dietMethod" value={opt} checked={oralScreening.dietMethod === opt} onChange={(e) => setOralScreening({...oralScreening, dietMethod: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium">{opt}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">食物型態</label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                {['正常', '軟食', '碎食', '泥狀', '其它'].map(opt => (
-                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.foodType === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
-                    <input type="radio" name="foodType" value={opt} checked={oralScreening.foodType === opt} onChange={(e) => setOralScreening({...oralScreening, foodType: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium">{opt}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">飲食能力</label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {['自行進食', '使用特殊餐具', '輔助餵食', '其它'].map(opt => (
-                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.eatingAbility === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
-                    <input type="radio" name="eatingAbility" value={opt} checked={oralScreening.eatingAbility === opt} onChange={(e) => setOralScreening({...oralScreening, eatingAbility: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium">{opt}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-              <label className="block text-sm font-bold text-blue-900 mb-3">假牙使用狀況</label>
-              <div className="mb-4">
-                <span className="text-xs font-bold text-gray-600 block mb-2">上顎</span>
-                <select className="w-full p-2 border rounded-lg mb-2 bg-white" value={oralScreening.upperDenture} onChange={(e) => setOralScreening({...oralScreening, upperDenture: e.target.value})}>
-                  <option value="">選擇假牙類型</option><option value="無">無</option><option value="局部活動">局部活動假牙</option><option value="全口活動">全口活動假牙</option><option value="局部固定">局部固定假牙</option><option value="全口固定">全口固定假牙</option>
-                </select>
-                <div className="flex space-x-4">
-                  {['經常', '偶爾', '其它'].map(opt => (
-                    <label key={`up-${opt}`} className="flex items-center text-sm cursor-pointer">
-                      <input type="radio" name="upperDentureUsage" value={opt} checked={oralScreening.upperDentureUsage === opt} onChange={(e) => setOralScreening({...oralScreening, upperDentureUsage: e.target.value})} className="mr-1 text-blue-600" /> 
-                      <span className={oralScreening.upperDentureUsage === opt ? 'text-blue-700 font-bold' : 'text-gray-700'}>{opt}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+            {/* 初步評估結論區塊 */}
+            <div className={`p-4 rounded-xl border-2 flex items-center justify-between ${isSuspectedFrailty ? 'bg-yellow-50 border-yellow-400' : 'bg-green-50 border-green-400'}`}>
               <div>
-                <span className="text-xs font-bold text-gray-600 block mb-2">下顎</span>
-                <select className="w-full p-2 border rounded-lg mb-2 bg-white" value={oralScreening.lowerDenture} onChange={(e) => setOralScreening({...oralScreening, lowerDenture: e.target.value})}>
-                  <option value="">選擇假牙類型</option><option value="無">無</option><option value="局部活動">局部活動假牙</option><option value="全口活動">全口活動假牙</option><option value="局部固定">局部固定假牙</option><option value="全口固定">全口固定假牙</option>
-                </select>
-                <div className="flex space-x-4">
-                  {['經常', '偶爾', '其它'].map(opt => (
-                    <label key={`low-${opt}`} className="flex items-center text-sm cursor-pointer">
-                      <input type="radio" name="lowerDentureUsage" value={opt} checked={oralScreening.lowerDentureUsage === opt} onChange={(e) => setOralScreening({...oralScreening, lowerDentureUsage: e.target.value})} className="mr-1 text-blue-600" /> 
-                      <span className={oralScreening.lowerDentureUsage === opt ? 'text-blue-700 font-bold' : 'text-gray-700'}>{opt}</span>
-                    </label>
+                <h3 className={`text-lg font-bold ${isSuspectedFrailty ? 'text-yellow-800' : 'text-green-800'}`}>初步評估結論</h3>
+                <p className={`text-sm mt-1 ${isSuspectedFrailty ? 'text-yellow-700' : 'text-green-700'}`}>
+                  {isSuspectedFrailty ? 'OF-5 ≥ 2 或 OFI-8 ≥ 4，判定為「疑似口腔衰弱」。請繼續完成下方評估以確認風險等級。' : '目前指標正常，無明顯口腔衰弱跡象。仍可繼續完成下方評估。'}
+                </p>
+              </div>
+            </div>
+
+            {/* 5. TCI */}
+            <Card title="舌苔指數 (TCI)" score={`${tciScore}%`} alertCondition={tciScore >= 50} alertText="異常 (≥50%)">
+              <p className="text-xs text-gray-500 mb-4 text-center">將舌頭區分為九宮格。0: 無舌苔, 1: 薄舌苔, 2: 厚舌苔</p>
+              <div className="flex justify-center my-4">
+                <div className="grid grid-cols-3 gap-2 w-full max-w-xs aspect-square">
+                  {tci.map((val, idx) => (
+                    <div key={idx} className="border-2 border-pink-200 rounded-xl flex flex-col items-center justify-center bg-pink-50/50">
+                      <select 
+                        className="block w-16 text-center rounded-lg border-gray-300 bg-white shadow-sm focus:border-pink-500 focus:ring-pink-500 text-lg font-bold p-2"
+                        value={val}
+                        onChange={(e) => {
+                          const newTci = [...tci];
+                          newTci[idx] = parseInt(e.target.value);
+                          setTci(newTci);
+                        }}
+                      >
+                        <option value={0}>0</option>
+                        <option value={1}>1</option>
+                        <option value={2}>2</option>
+                      </select>
+                    </div>
                   ))}
                 </div>
               </div>
-            </div>
+            </Card>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">其它口腔疾病與異常 (可複選)</label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {['緊咬', '牙齦炎', '牙周病', '口腔黏膜異常', '其它'].map(opt => (
-                  <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.otherDiseases.includes(opt) ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
-                    <input type="checkbox" checked={oralScreening.otherDiseases.includes(opt)} onChange={() => handleDiseaseToggle(opt)} className="w-4 h-4 text-blue-600 mr-2 rounded" />
-                    <span className="text-sm font-medium">{opt}</span>
-                  </label>
+            {/* 6. OHAT */}
+            <Card title="口腔健康評估 (OHAT)" score={ohatScore} alertCondition={ohatScore >= 4 || ohatItemsWith2.length > 0} alertText="異常 (總分≥4分 或 單項達2分)">
+              <div className="space-y-6">
+                {OHAT_CATEGORIES.map((cat) => (
+                  <div key={cat.id} className="flex flex-col pb-4 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-blue-900 mb-3 font-bold bg-blue-50 inline-block px-3 py-1 rounded-md self-start">{cat.name}</span>
+                    <div className="space-y-2">
+                      {cat.opts.map((opt, idx) => (
+                        <label key={idx} className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${ohat[cat.id] === idx ? 'bg-blue-100 border-blue-400' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+                          <input type="radio" name={`ohat-${cat.id}`} checked={ohat[cat.id] === idx} onChange={() => setOhat({...ohat, [cat.id]: idx})} className="mt-0.5 w-4 h-4 text-blue-600 mr-3 shrink-0" />
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-medium ${ohat[cat.id] === idx ? 'text-blue-900' : 'text-gray-800'}`}>{idx} 分</span>
+                            <span className="text-xs text-gray-500 mt-1">{opt}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </Card>
+            </Card>
 
-        {/* 8. 衛教與教材提供 (固定帶入已提供) */}
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between opacity-90">
-          <div className="flex items-center">
-            <BookOpen className="w-6 h-6 text-green-600 mr-3" />
-            <div>
-              <h3 className="text-green-900 font-bold">提供口腔機能促進練習教材 (固定)</h3>
-              <p className="text-green-700 text-sm mt-0.5">預設已提供衛教教材給個案</p>
+            {/* 7. 口篩表 */}
+            <Card title="口篩表">
+              <div className="space-y-6">
+                <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                  <div className="flex justify-between items-end mb-2">
+                    <label className="block text-sm font-bold text-blue-900">牙齒現況</label>
+                    <span className="text-xs text-gray-500">左右滑動填寫</span>
+                  </div>
+                  <p className="text-xs text-gray-600 mb-3 font-medium">代碼：D=窩洞，M=缺牙，RR=殘根，F=填補</p>
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-xs font-bold text-gray-600 block mb-1">上顎 (18-28)</span>
+                      <div className="flex overflow-x-auto pb-2 space-x-1 snap-x">
+                        {UPPER_TEETH.map(t => (
+                          <div key={t} className="flex flex-col items-center min-w-[3.5rem] snap-start">
+                            <span className="text-xs font-bold text-gray-700">{t}</span>
+                            <select className="mt-1 w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-1 focus:ring-blue-500" value={oralScreening.dentalStatus[t] || ''} onChange={(e) => handleDentalStatusChange(t, e.target.value)}>
+                              <option value="">-</option><option value="D">D</option><option value="M">M</option><option value="RR">RR</option><option value="F">F</option>
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-gray-600 block mb-1">下顎 (48-38)</span>
+                      <div className="flex overflow-x-auto pb-2 space-x-1 snap-x">
+                        {LOWER_TEETH.map(t => (
+                          <div key={t} className="flex flex-col items-center min-w-[3.5rem] snap-start">
+                            <span className="text-xs font-bold text-gray-700">{t}</span>
+                            <select className="mt-1 w-full text-xs border border-gray-300 rounded p-1.5 bg-white focus:ring-1 focus:ring-blue-500" value={oralScreening.dentalStatus[t] || ''} onChange={(e) => handleDentalStatusChange(t, e.target.value)}>
+                              <option value="">-</option><option value="D">D</option><option value="M">M</option><option value="RR">RR</option><option value="F">F</option>
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">飲食方式</label>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {['經口', '鼻胃管', '胃造口', '其它'].map(opt => (
+                      <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.dietMethod === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
+                        <input type="radio" name="dietMethod" value={opt} checked={oralScreening.dietMethod === opt} onChange={(e) => setOralScreening({...oralScreening, dietMethod: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
+                        <span className="text-sm font-medium">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">食物型態</label>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    {['正常', '軟食', '碎食', '泥狀', '其它'].map(opt => (
+                      <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.foodType === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
+                        <input type="radio" name="foodType" value={opt} checked={oralScreening.foodType === opt} onChange={(e) => setOralScreening({...oralScreening, foodType: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
+                        <span className="text-sm font-medium">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">飲食能力</label>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {['自行進食', '使用特殊餐具', '輔助餵食', '其它'].map(opt => (
+                      <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.eatingAbility === opt ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
+                        <input type="radio" name="eatingAbility" value={opt} checked={oralScreening.eatingAbility === opt} onChange={(e) => setOralScreening({...oralScreening, eatingAbility: e.target.value})} className="w-4 h-4 text-blue-600 mr-2" />
+                        <span className="text-sm font-medium">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                  <label className="block text-sm font-bold text-blue-900 mb-3">假牙使用狀況</label>
+                  <div className="mb-4">
+                    <span className="text-xs font-bold text-gray-600 block mb-2">上顎</span>
+                    <select className="w-full p-2 border rounded-lg mb-2 bg-white" value={oralScreening.upperDenture} onChange={(e) => setOralScreening({...oralScreening, upperDenture: e.target.value})}>
+                      <option value="">選擇假牙類型</option><option value="無">無</option><option value="局部活動">局部活動假牙</option><option value="全口活動">全口活動假牙</option><option value="局部固定">局部固定假牙</option><option value="全口固定">全口固定假牙</option>
+                    </select>
+                    <div className="flex space-x-4">
+                      {['經常', '偶爾', '其它'].map(opt => (
+                        <label key={`up-${opt}`} className="flex items-center text-sm cursor-pointer">
+                          <input type="radio" name="upperDentureUsage" value={opt} checked={oralScreening.upperDentureUsage === opt} onChange={(e) => setOralScreening({...oralScreening, upperDentureUsage: e.target.value})} className="mr-1 text-blue-600" /> 
+                          <span className={oralScreening.upperDentureUsage === opt ? 'text-blue-700 font-bold' : 'text-gray-700'}>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-gray-600 block mb-2">下顎</span>
+                    <select className="w-full p-2 border rounded-lg mb-2 bg-white" value={oralScreening.lowerDenture} onChange={(e) => setOralScreening({...oralScreening, lowerDenture: e.target.value})}>
+                      <option value="">選擇假牙類型</option><option value="無">無</option><option value="局部活動">局部活動假牙</option><option value="全口活動">全口活動假牙</option><option value="局部固定">局部固定假牙</option><option value="全口固定">全口固定假牙</option>
+                    </select>
+                    <div className="flex space-x-4">
+                      {['經常', '偶爾', '其它'].map(opt => (
+                        <label key={`low-${opt}`} className="flex items-center text-sm cursor-pointer">
+                          <input type="radio" name="lowerDentureUsage" value={opt} checked={oralScreening.lowerDentureUsage === opt} onChange={(e) => setOralScreening({...oralScreening, lowerDentureUsage: e.target.value})} className="mr-1 text-blue-600" /> 
+                          <span className={oralScreening.lowerDentureUsage === opt ? 'text-blue-700 font-bold' : 'text-gray-700'}>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">其它口腔疾病與異常 (可複選)</label>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {['緊咬', '牙齦炎', '牙周病', '口腔黏膜異常', '其它'].map(opt => (
+                      <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${oralScreening.otherDiseases.includes(opt) ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-gray-50 border-gray-200'}`}>
+                        <input type="checkbox" checked={oralScreening.otherDiseases.includes(opt)} onChange={() => handleDiseaseToggle(opt)} className="w-4 h-4 text-blue-600 mr-2 rounded" />
+                        <span className="text-sm font-medium">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between opacity-90">
+              <div className="flex items-center">
+                <BookOpen className="w-6 h-6 text-green-600 mr-3" />
+                <div>
+                  <h3 className="text-green-900 font-bold">提供口腔機能促進練習教材 (固定)</h3>
+                  <p className="text-green-700 text-sm mt-0.5">預設已提供衛教教材給個案</p>
+                </div>
+              </div>
+              <input type="checkbox" checked={provideMaterials} readOnly className="w-6 h-6 text-green-600 rounded cursor-not-allowed" />
             </div>
           </div>
-          <input 
-            type="checkbox" 
-            checked={provideMaterials} 
-            readOnly
-            className="w-6 h-6 text-green-600 rounded cursor-not-allowed" 
-          />
-        </div>
+        )}
 
       </div>
 
-      {/* 底部固定儲存按鈕 */}
+      {/* 底部固定按鈕區 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
         <div className="max-w-3xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
-          <div className="text-sm font-medium text-center sm:text-left w-full sm:w-auto">
-            {isFormComplete ? (
-              <span className="text-green-600 flex items-center justify-center sm:justify-start">
-                <CheckCircle2 className="w-4 h-4 mr-1" /> 所有必填資料皆已完成
-              </span>
-            ) : (
-              <span className="text-red-500 flex items-center justify-center sm:justify-start">
-                <AlertCircle className="w-4 h-4 mr-1" /> 請完成所有必填項目以送出
-              </span>
-            )}
-          </div>
-          <button 
-            onClick={handleSave}
-            disabled={!isFormComplete || isSubmitting}
-            className={`w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
-              isFormComplete ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'
-            }`}
-          >
-            {isSubmitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
-            {isSubmitting ? '資料儲存中...' : '送出評估結果'}
-          </button>
+          
+          {appMode === 'patient' && (
+            <>
+              <div className="text-sm font-medium text-center sm:text-left w-full sm:w-auto">
+                {isPatientFormComplete ? (
+                  <span className="text-green-600 flex items-center justify-center sm:justify-start">
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> 民眾填寫部分已完成
+                  </span>
+                ) : (
+                  <span className="text-red-500 flex items-center justify-center sm:justify-start">
+                    <AlertCircle className="w-4 h-4 mr-1" /> 請完成所有必填項目
+                  </span>
+                )}
+              </div>
+              <button 
+                onClick={handleGenerateHandoff}
+                disabled={!isPatientFormComplete}
+                className={`w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white transition-colors ${
+                  isPatientFormComplete ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'
+                }`}
+              >
+                <QrCode className="w-5 h-5 mr-2" /> 完成並產生交接條碼
+              </button>
+            </>
+          )}
+
+          {appMode === 'assistant' && (
+            <>
+              <div className="text-sm font-medium text-center sm:text-left w-full sm:w-auto">
+                {isAssistantFormComplete ? (
+                  <span className="text-green-600 flex items-center justify-center sm:justify-start">
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> 專業評估部分已完成
+                  </span>
+                ) : (
+                  <span className="text-red-500 flex items-center justify-center sm:justify-start">
+                    <AlertCircle className="w-4 h-4 mr-1" /> 助理請完成所有評估項目
+                  </span>
+                )}
+              </div>
+              <button 
+                onClick={handleSave}
+                disabled={!isAssistantFormComplete || isSubmitting}
+                className={`w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white transition-colors ${
+                  isAssistantFormComplete ? 'bg-green-600 hover:bg-green-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'
+                }`}
+              >
+                {isSubmitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
+                {isSubmitting ? '資料儲存中...' : '送出完整評估結果'}
+              </button>
+            </>
+          )}
+
         </div>
       </div>
     </div>
